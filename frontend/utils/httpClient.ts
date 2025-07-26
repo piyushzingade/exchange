@@ -1,33 +1,61 @@
 import axios from "axios";
 import { Depth, KLine, Ticker, Trade } from "./types";
 
-export const BASE_URL = "http://localhost:3333/api/v3"
+export const BASE_URL = "http://localhost:3333/api/v1";
 
-
-export async function getAllTicker(): Promise<Ticker[]>{
-  const response  = await axios.get(`${BASE_URL}/ticket`);
+export async function getAllTickers(): Promise<Ticker[]> {
+  const response = await axios.get(`${BASE_URL}/tickers`);
   return response.data;
 }
 
+export async function getTicker(market: string): Promise<Ticker> {
+  const tickers = await getAllTickers();
 
-export async function getTicker(market : string) : Promise<Ticker>{
+  // Try different matching strategies
+  let ticker =
+    // Exact match
+    tickers.find((t) => t.symbol === market) ||
+    // Case insensitive match
+    tickers.find((t) => t.symbol.toLowerCase() === market.toLowerCase()) ||
+    // Replace underscore with hyphen
+    tickers.find((t) => t.symbol === market.replace("_", "-")) ||
+    // Replace hyphen with underscore
+    tickers.find((t) => t.symbol === market.replace("-", "_")) ||
+    // Uppercase version
+    tickers.find((t) => t.symbol === market.toUpperCase()) ||
+    // Lowercase version
+    tickers.find((t) => t.symbol === market.toLowerCase());
 
-  const tickers = await getAllTicker();
-  const ticker = tickers.find(t => t.symbol === market);
+  if (!ticker) {
+    const availableSymbols = tickers.map((t) => t.symbol);
+    const similarSymbols = availableSymbols.filter((symbol) => {
+      const lowerSymbol = symbol.toLowerCase();
+      const lowerMarket = market.toLowerCase();
+      return (
+        lowerSymbol.includes(lowerMarket.split("_")[0]) ||
+        lowerSymbol.includes(lowerMarket.split("-")[0])
+      );
+    });
 
-  if(!ticker){
-    throw new Error(`No ticker found of ${market}`)
+    throw new Error(
+      `No ticker found for "${market}". ` +
+        `Available symbols: ${availableSymbols.slice(0, 10).join(", ")}${
+          availableSymbols.length > 10 ? "..." : ""
+        }. ` +
+        `Similar symbols: ${similarSymbols.slice(0, 5).join(", ")}`
+    );
   }
-  return ticker;
-} 
 
-export async function getDepth(market:string): Promise<Depth> {
-  const response = await axios.get(`${BASE_URL}/depth?symbol=${market}`)
+  return ticker;
+}
+
+export async function getDepth(market: string): Promise<Depth> {
+  const response = await axios.get(`${BASE_URL}/depth?symbol=${market}`);
   return response.data;
 }
 
-export async function getTrade(market:string):Promise<Trade[]> {
-  const response =  await axios.get(`${BASE_URL}/trade?symbol=${market}`)
+export async function getTrade(market: string): Promise<Trade[]> {
+  const response = await axios.get(`${BASE_URL}/trade?symbol=${market}`);
   return response.data;
 }
 

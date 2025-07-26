@@ -1,6 +1,6 @@
 import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
-
+import cors from 'cors'
 const app = express();
 
 // Replace this with the target server URL
@@ -25,6 +25,7 @@ app.use(
   })
 );
 
+app.use(cors())
 const port = 3333;
 app.listen(port, () => {
   console.log(`Proxy server running on http://localhost:${port}`);

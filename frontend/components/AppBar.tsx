@@ -91,7 +91,7 @@ export default function AppBar() {
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6] text-md font-semibold`}
-              href={"/trade/SOL_USD"}
+              href={"/trade/SOL_USDC"}
             >
               Spot
             </Link>
@@ -102,18 +102,18 @@ export default function AppBar() {
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6]`}
-              href={"/trade/SOL_USD"}
+              href={"/trade/SOL_USDC"}
             >
               Future
             </Link>
             <Link
               onClick={() => {
                 setIsSelected(!isSelected);
-              }}
+              }}  
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6]`}
-              href={"/trade/SOL_USD"}
+              href={"/trade/SOL_USDC"}
             >
               Lend
             </Link>
