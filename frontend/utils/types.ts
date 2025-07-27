@@ -8,6 +8,7 @@ export interface KLine {
   start: string;
   trades: string;
   volume: string;
+  // timestamp:  Date
 }
 
 export interface Trade {
@@ -36,4 +37,12 @@ export interface Ticker {
   symbol: string;
   trades: string;
   volume: string;
+}
+
+import "lightweight-charts";
+
+declare module "lightweight-charts" {
+  interface IChartApi {
+    addCandlestickSeries(): ISeriesApi<"Candlestick">;
+  }
 }

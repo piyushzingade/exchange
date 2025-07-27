@@ -1,88 +1,66 @@
 import {
+  createChart,
   ColorType,
-  createChart as createLightWeightChart,
   CrosshairMode,
   IChartApi,
-  ISeriesApi,
   UTCTimestamp,
+  CandlestickData,
 } from "lightweight-charts";
 
 export class ChartManager {
-  private candleSeries: ISeriesApi<"Candlestick">;
+  private chart: IChartApi;
+  private candleSeries: any; // fallback type
   private lastUpdateTime: number = 0;
-  private chart: any;
-  private currentBar: {
-    high: number | null;
-    open: number | null;
-    low: number | null;
-    close: number | null;
-  } = {
-    high: null,
-    open: null,
-    close: null,
-    low: null,
-  };
 
   constructor(
-    ref: any,
-    initialData: any[],
+    ref: HTMLDivElement,
+    initialData: CandlestickData[],
     layout: { background: string; color: string }
   ) {
-    const chart = createLightWeightChart(ref, {
+    this.chart = createChart(ref, {
       autoSize: true,
-      overlayPriceScales: {
-        ticksVisible: true,
-        borderVisible: true,
+      layout: {
+        background: { type: ColorType.Solid, color: layout.background },
+        textColor: layout.color,
       },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-      },
+      crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: {
         visible: true,
         ticksVisible: true,
         entireTextOnly: true,
       },
-      grid: {
-        horzLines: {
-          visible: false,
-        },
-        vertLines: {
-          visible: false,
-        },
+      overlayPriceScales: {
+        ticksVisible: true,
+        borderVisible: true,
       },
-      layout: {
-        background: {
-          type: ColorType.Solid,
-          color: layout.background,
-        },
-        textColor: "white",
+      grid: {
+        horzLines: { visible: false },
+        vertLines: { visible: false },
       },
     });
-    this.chart = chart;
-    // Type-cast to fix TS temporarily
-    this.candleSeries = (chart as any).addCandlestickSeries();
 
-    this.candleSeries.setData(
-      initialData.map((data) => ({
-        ...data,
-        time: (data.timestamp / 1000) as UTCTimestamp,
-      }))
-    );
+
+    this.candleSeries = (this.chart as any).addCandlestickSeries();
+
+    this.candleSeries.setData(initialData);
   }
 
-  public update(updatePrice : any){
-    if(!this.lastUpdateTime){
-        this.lastUpdateTime =  new Date().getTime();
+  public update(updatePrice: {
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+  }) {
+    if (!this.lastUpdateTime) {
+      this.lastUpdateTime = Math.floor(Date.now() / 1000);
     }
 
     this.candleSeries.update({
-        time : this.lastUpdateTime /1000 as UTCTimestamp,
-        high: updatePrice.high,
-        low:updatePrice.low,
-        close: updatePrice.close,
-        open:updatePrice.open
-    })
+      time: this.lastUpdateTime as UTCTimestamp,
+      ...updatePrice,
+    });
   }
+
   public destroy() {
     this.chart.remove();
   }
