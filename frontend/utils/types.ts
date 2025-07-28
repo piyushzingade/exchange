@@ -39,10 +39,3 @@ export interface Ticker {
   volume: string;
 }
 
-import "lightweight-charts";
-
-declare module "lightweight-charts" {
-  interface IChartApi {
-    addCandlestickSeries(): ISeriesApi<"Candlestick">;
-  }
-}

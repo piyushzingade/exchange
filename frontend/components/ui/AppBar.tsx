@@ -1,10 +1,10 @@
 "use client"
 import Link from "next/link";
-import { Button } from "./ui/button";
+import { Button } from "./button";
 import { useState } from "react";
-import { DropdownMenu } from "./ui/dropdown-menu";
+import { DropdownMenu } from "../Landing/dropdown-menu";
 import DropDownButton from "./DropDownButton";
-import { Input } from "./ui/input";
+import { Input } from "./input";
 import { Search } from "lucide-react";
 
 
@@ -109,7 +109,7 @@ export default function AppBar() {
             <Link
               onClick={() => {
                 setIsSelected(!isSelected);
-              }}  
+              }}
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6]`}
@@ -122,17 +122,54 @@ export default function AppBar() {
         </div>
 
         {/* Search Bar */}
-        <div className="flex">
+        {/* <div className="flex">
           <Input
             placeholder=" Search "
             className="flex items-start justify-start "
           />
+        </div> */}
+
+        <div className="absolute left-1/2 hidden -translate-x-1/2 justify-self-center min-[1470px]:inline-flex">
+          <div className="flex items-center justify-between flex-row bg-[#202127]  w-[340px] flex-1 cursor-pointer overflow-hidden rounded-xl px-1 ">
+            <div className="flex items-center flex-row flex-1">
+              <div className="mx-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-search text-[#75798a] h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path d="m21 21-4.34-4.34"></path>
+                  <circle cx="11" cy="11" r="8"></circle>
+                </svg>
+              </div>
+              <Input
+                placeholder="Search markets"
+                className=" text-neutral-100 placeholder-low-emphasis h-8 w-full border-0 p-0 text-sm font-normal outline-hidden focus:ring-0"
+                type="text"
+              />
+            </div>
+            <div className="border-[#313237] bg-[#313237] text-base-icon mx-2 flex h-6 w-6 items-center justify-center rounded-sm border text-sm select-none">
+              /
+            </div>
+          </div>
         </div>
 
         {/* Auth */}
         <div className="flex justify-center items-center gap-4 ">
-          <Button className="bg-[#0c2c24] text-[#00c278] font-semibold">Sign in</Button>
-          <Button className="bg-[#18253a] text-[rgb(76,148,255)]">Sign up</Button>
+          <Button className="bg-[#0c2c24] text-[#00c278] font-semibold">
+            Sign in
+          </Button>
+          <Button className="bg-[#18253a] text-[rgb(76,148,255)]">
+            Sign up
+          </Button>
         </div>
       </div>
     );
