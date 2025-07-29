@@ -11,46 +11,18 @@ export function SwapUI({ market }: { market: string }) {
   const [type, setType] = useState("limit");
 
   return (
-    <div className="rounded-2xl bg-[#111113] p-3 text-white w-full max-w-md mx-auto">
+    <div className="rounded-2xl bg-[#14151b] p-3 text-white w-full max-w-md mx-auto">
       {/* Buy/Sell Tabs */}
-      <div className="flex mb-4">
-        <Button
-          onClick={() => setActiveTab("buy")}
-          className={`flex-1 py-3 rounded-lg text-sm font-semibold ${
-            activeTab === "buy"
-              ? "bg-[#2d2d2e] text-white"
-              : "bg-[#1b1b1c] text-gray-400"
-          }`}
-        >
-          Buy
-        </Button>
-        <Button
-          onClick={() => setActiveTab("sell")}
-          className={`flex-1 py-3 rounded-lg text-sm font-semibold ${
-            activeTab === "sell"
-              ? "bg-[#3d1d1d] text-red-400"
-              : "bg-[#1b1b1c] text-gray-400"
-          }`}
-        >
-          Sell
-        </Button>
+      <div className="flex mb-4 bg-[#202127] rounded-xl">
+        <BuyButton activeTab={activeTab} setActiveTab={setActiveTab} />
+        <SellButton activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
       {/* Limit / Market / Conditional */}
       <div className="flex gap-2 mb-4">
-        {["Limit", "Market", "Conditional"].map((label) => (
-          <Button
-            key={label}
-            onClick={() => setType(label.toLowerCase())}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium ${
-              type === label.toLowerCase()
-                ? "bg-[#2a2a2e] text-white"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            {label}
-          </Button>
-        ))}
+        <LimitButton type={type} setType={setType} />
+        <MarketButton type={type} setType={setType} />
+        <ConditionalButton type={type} setType={setType} />
       </div>
 
       {/* Balance Row */}

@@ -1,32 +1,37 @@
 "use client";
 import { useEffect, useState } from "react";
-
-import { getTicker } from "../utils/httpClient";
 import { SignalingManager } from "@/utils/SignalingManager";
 import type { Ticker } from "@/utils/types";
 import Image from "next/image";
+import { getTicker } from "@/utils/httpClient";
 
 export const MarketBar = ({ market }: { market: string }) => {
   const [ticker, setTicker] = useState<Ticker | null>(null);
 
   useEffect(() => {
-    getTicker(market).then(setTicker);
+    // getTicker(market).then(setTicker);
+    getTicker(market).then((t) => setTicker(t));
     SignalingManager.getInstance().registerCallback(
       "ticker",
-      (data: Partial<Ticker>) =>
-        setTicker((prevTicker) => ({
-          firstPrice: data?.firstPrice ?? prevTicker?.firstPrice ?? "",
-          high: data?.high ?? prevTicker?.high ?? "",
-          lastPrice: data?.lastPrice ?? prevTicker?.lastPrice ?? "",
-          low: data?.low ?? prevTicker?.low ?? "",
-          priceChange: data?.priceChange ?? prevTicker?.priceChange ?? "",
-          priceChangePercent:
-            data?.priceChangePercent ?? prevTicker?.priceChangePercent ?? "",
-          quoteVolume: data?.quoteVolume ?? prevTicker?.quoteVolume ?? "",
-          symbol: data?.symbol ?? prevTicker?.symbol ?? "",
-          trades: data?.trades ?? prevTicker?.trades ?? "",
-          volume: data?.volume ?? prevTicker?.volume ?? "",
-        })),
+      (data: any) => {
+        console.log("MarketBar ticker data received:", data); // Debug log
+        setTicker((prevTicker) => {
+          if (!prevTicker) return prevTicker;
+          return {
+            firstPrice: data?.firstPrice ?? prevTicker.firstPrice,
+            high: data?.high ?? prevTicker.high,
+            lastPrice: data?.lastPrice ?? prevTicker.lastPrice,
+            low: data?.low ?? prevTicker.low,
+            priceChange: data?.priceChange ?? prevTicker.priceChange,
+            priceChangePercent:
+              data?.priceChangePercent ?? prevTicker.priceChangePercent,
+            quoteVolume: data?.quoteVolume ?? prevTicker.quoteVolume,
+            symbol: data?.symbol ?? prevTicker.symbol,
+            trades: data?.trades ?? prevTicker.trades,
+            volume: data?.volume ?? prevTicker.volume,
+          };
+        });
+      },
       `TICKER-${market}`
     );
     SignalingManager.getInstance().sendMessage({
@@ -112,8 +117,8 @@ export const MarketBar = ({ market }: { market: string }) => {
 };
 
 function Ticker({ market }: { market: string }) {
- return (
-    <div className="flex shrink-0 g ap-2 bg-[#202127] px-3 py-2.5 rounded-xl items-center">
+  return (
+    <div className="flex shrink-0 gap-2 bg-[#202127] px-3 py-2.5 rounded-xl items-center">
       <div className="flex items-center justify-center">
         <img
           alt="SOL Logo"
@@ -137,5 +142,5 @@ function Ticker({ market }: { market: string }) {
         </div>
       </button>
     </div>
- )
+  );
 }

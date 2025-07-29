@@ -5,6 +5,7 @@ import { depthRouter } from "./router/depth";
 import { tradesRouter } from "./router/trades";
 import { klineRouter } from "./router/kline";
 import { tickersRouter } from "./router/ticker";
+
 const app = express();
 app.use(cors());
 app.use(express.json())

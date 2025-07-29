@@ -8,7 +8,7 @@ export default function Hero() {
     <div className='max-w-6xl   mx-auto  space-y-4'>
        <Slider/>
        <MarketCards/>
-       {/* <AllMarketLists/> */}
+       <AllMarketLists/>
     </div>
   )
 }

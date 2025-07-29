@@ -1,17 +1,47 @@
+import { useRef, useState } from "react";
+
 export const BidTable = ({ bids }: { bids: [string, string][] }) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Filter out zero quantities
+  const filteredBids = bids.filter(([_, quantity]) => Number(quantity) > 0);
+  const relevantBids = filteredBids.slice(0, 15);
+
   let currentTotal = 0;
-  const relevantBids = bids.slice(0, 15);
   const bidsWithTotal: [string, string, number][] = relevantBids.map(
     ([price, quantity]) => [price, quantity, (currentTotal += Number(quantity))]
   );
+
   const maxTotal = relevantBids.reduce(
     (acc, [_, quantity]) => acc + Number(quantity),
     0
   );
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop } = e.currentTarget;
+    setIsScrolled(scrollTop > 0);
+  };
+
+  // Show only first 9 items if not scrolled
+  const displayBids = isScrolled ? bidsWithTotal : bidsWithTotal.slice(0, 9);
+
   return (
-    <div>
-      {bidsWithTotal?.map(([price, quantity, total]) => (
+    <div
+      ref={containerRef}
+      className="max-h-[200px] overflow-y-auto scrollbar-hide"
+      onScroll={handleScroll}
+      style={{
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      <style jsx>{`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      {displayBids?.map(([price, quantity, total]) => (
         <Bid
           maxTotal={maxTotal}
           total={total}
@@ -35,19 +65,25 @@ function Bid({
   total: number;
   maxTotal: number;
 }) {
-  const widthPercentage = (100 * total) / maxTotal;
-
   return (
-    <div className="flex relative w-full bg-transparent overflow-hidden">
+    <div className="relative grid grid-cols-3 text-xs py-[2px] border-y-2 border-transparent">
       <div
-        className="absolute top-0 left-0 h-full bg-green-500/30 transition-all duration-300 ease-in-out"
-        style={{ width: `${widthPercentage}%` }}
+        className="absolute right-0 top-0 bottom-0 bg-green-900/30"
+        style={{
+          width: `${(100 * total) / maxTotal}%`,
+          transition: "width 0.3s ease-in-out",
+        }}
       ></div>
-      <div className="flex justify-between text-xs w-full relative z-10 p-1">
-        <div className="text-white">{price}</div>
-        <div className="text-white">{quantity}</div>
-        <div className="text-white">{total.toFixed(2)}</div>
-      </div>
+      <div
+        className="absolute right-0 top-0 bottom-0 bg-green-700/50"
+        style={{
+          width: `${(100 * parseInt(quantity)) / maxTotal}%`,
+          transition: "width 0.3s ease-in-out",
+        }}
+      ></div>
+      <div className="z-10 text-green-400">{price}</div>
+      <div className="z-10 text-right">{quantity}</div>
+      <div className="z-10 text-right">{total.toFixed(2)}</div>
     </div>
   );
 }
