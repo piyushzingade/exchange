@@ -55,7 +55,7 @@ export async function getDepth(market: string): Promise<Depth> {
 }
 
 export async function getTrade(market: string): Promise<Trade[]> {
-  const response = await axios.get(`${BASE_URL}/trade?symbol=${market}`);
+  const response = await axios.get(`${BASE_URL}/trades?symbol=${market}`);
   return response.data;
 }
 

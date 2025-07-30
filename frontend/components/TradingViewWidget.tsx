@@ -95,8 +95,8 @@ export default function TradingViewWidget({
 export function TradingViewIframe({
   market,
   theme = "dark",
-  width = "100%",
-  height = 520,
+  // width = "100%",
+  height = 550,
 }: TradingViewWidgetProps) {
   const [isClient, setIsClient] = useState(false);
 

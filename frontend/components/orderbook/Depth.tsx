@@ -128,7 +128,7 @@ export function Depth({ market }: { market: string }) {
       // Cleanup depth subscription
       SignalingManager.getInstance().sendMessage({
         method: "UNSUBSCRIBE",
-        params: [`depth.200ms.${market}`],
+        params: [`depth.100ms.${market}`],
       });
       SignalingManager.getInstance().deRegisterCallback(
         "depth",

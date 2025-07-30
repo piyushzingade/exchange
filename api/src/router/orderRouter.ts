@@ -13,7 +13,7 @@ orderRouter.post("/" , async (req , res)=>{
               .send("Some required fields are missing in Order Router");
 
         }
-
+        console.log(price)
         const response = await RedisManager.getInstance().sendAndAwait({
           type: CREATE_ORDER,
           data: {
@@ -25,8 +25,8 @@ orderRouter.post("/" , async (req , res)=>{
           },
         });
 
-        // res.json(response.payload)
-        res.send("Updated")
+        res.json(response.payload)
+        // res.send("Updated")
     } catch (error) {
         console.log("Error in create Order :" , error)
         res.status(403).send("Error in place order / route ");

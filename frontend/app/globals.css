@@ -43,6 +43,17 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
 :root {
   --radius: 0.625rem;
   --background: #0e0f14;
