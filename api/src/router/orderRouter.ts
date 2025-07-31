@@ -61,7 +61,7 @@ orderRouter.get("/open" , async(req , res)=>{
         userId  : req.query.userId as string,
         market :req.query.market as string
 
-      }
+      } 
     })
 
     res.status(200).json(response.payload)

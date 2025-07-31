@@ -8,8 +8,8 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: my_database
-      POSTGRES_USER: your_user
-      POSTGRES_PASSWORD: your_password
+      # POSTGRES_USER: piyush
+      POSTGRES_PASSWORD: root
     volumes:
       - timescale-data:/var/lib/postgresql/data
 

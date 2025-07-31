@@ -1,4 +1,4 @@
-"use client";
+// "use client";
 
 import { Depth } from "@/components/orderbook/Depth";
 import { MarketBar } from "@/components/MarketBar";
@@ -7,8 +7,9 @@ import { TradeView } from "@/components/TradingViewWidget";
 // import TradeView from "@/components/TradeView";
 import { useParams } from "next/navigation";
 
-export default function Page() {
-  const { market } = useParams();
+export default async function Page({params} : { params : Promise<{market : string}>}) {
+  // const { market } = useParams();
+  const {market} = await params;
   return (
     <div className="flex flex-row flex-1">
       <div className="flex flex-col flex-1">

@@ -1,28 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function SwapUI({ market }: { market: string }) {
   const [activeTab, setActiveTab] = useState("sell");
   const [type, setType] = useState("limit");
+  const [price, setPrice] = useState("0");  
+  const [quantity, setQuantity] = useState("0");
+  const [orderValue, setOrderValue] = useState("0");
+
+  const handleInput = (value: string) => {
+    // Remove all non-numeric characters except decimal point
+    const sanitized = value.replace(/[^0-9.]/g, "");
+
+    // Prevent negative numbers by removing minus signs
+    const positiveOnly = sanitized.replace(/-/g, "");
+
+    // Allow only one decimal point
+    const parts = positiveOnly.split(".");
+    if (parts.length > 2) {
+      return parts[0] + "." + parts[1];
+    }
+
+    // Prevent starting with just a dot
+    if (positiveOnly.startsWith(".")) {
+      return "0" + positiveOnly;
+    }
+
+    // Prevent multiple leading zeros
+    if (
+      positiveOnly.length > 1 &&
+      positiveOnly.startsWith("0") &&
+      !positiveOnly.startsWith("0.")
+    ) {
+      return positiveOnly.substring(1);
+    }
+
+    return positiveOnly;
+  };
+
+  useEffect(() => {
+    const priceNum = parseFloat(price) || 0;
+    const quantityNum = parseFloat(quantity) || 0;
+    const orderValue = priceNum * quantityNum;
+    setOrderValue(orderValue.toFixed(2));
+  }, [price, quantity]);
 
   return (
     <div className="rounded-2xl bg-[#14151b] p-3 text-white w-full max-w-md mx-auto">
       {/* Buy/Sell Tabs */}
-      <div className="flex mb-4 bg-[#202127] rounded-xl">
+      <div className="flex items-center justify-center mb-4 bg-[#202127] rounded-xl">
         <BuyButton activeTab={activeTab} setActiveTab={setActiveTab} />
         <SellButton activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
       {/* Limit / Market / Conditional */}
       <div className="flex gap-2 mb-4">
-        <LimitButton type={type} setType={setType} />
-        <MarketButton type={type} setType={setType} />
-        <ConditionalButton type={type} setType={setType} />
+        <Tabs defaultValue="limit">
+          <TabsList className="bg-[14151b]">
+            <TabsTrigger value="limit">
+              <LimitButton type={type} setType={setType} />
+            </TabsTrigger>
+            <TabsTrigger value="market">
+              <MarketButton type={type} setType={setType} />
+            </TabsTrigger>
+            <TabsTrigger value="conditional">
+              <ConditionalButton type={type} setType={setType} />
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="limit"></TabsContent>
+          <TabsContent value="market"></TabsContent>
+        </Tabs>
       </div>
 
       {/* Balance Row */}
@@ -43,8 +96,14 @@ export function SwapUI({ market }: { market: string }) {
         <div className="relative">
           <Input
             placeholder="0"
-            type="number"
-            className="h-12 text-right pr-12 text-2xl border border-gray-700 rounded-lg bg-[#1a1b1e] text-white"
+            type="text"
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(handleInput(e.target.value))}
+            className="h-12 text-right pr-12 text-2xl border border-gray-700 rounded-lg bg-[#1a1b1e] text-white appearance-none"
+            min="0"
+            max="100000"
+            step="any"
           />
           <Image
             src="/usdc.webp"
@@ -62,8 +121,14 @@ export function SwapUI({ market }: { market: string }) {
         <div className="relative">
           <Input
             placeholder="0"
-            type="number"
-            className="h-12 text-right pr-12 text-2xl border border-gray-700 rounded-lg bg-[#1a1b1e] text-white"
+            type="text"
+            inputMode="decimal"
+            value={quantity}
+            onChange={(e) => setQuantity(handleInput(e.target.value))}
+            className="h-12 text-right pr-12 text-2xl border border-gray-700 rounded-lg bg-[#1a1b1e] text-white appearance-none"
+            min="0"
+            max="1000"
+            step="any"
           />
           <Image
             src="/sol.webp"
@@ -77,10 +142,11 @@ export function SwapUI({ market }: { market: string }) {
 
       {/* Slider */}
       <div className="w-full mb-4 px-1">
-        <input
+        <Input
           type="range"
           min={0}
           max={100}
+          inputMode="numeric"
           className="w-full accent-blue-500"
         />
         <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -94,8 +160,8 @@ export function SwapUI({ market }: { market: string }) {
         <div className="text-xs text-gray-400 mb-1">Order Value</div>
         <div className="relative">
           <Input
-            placeholder="0"
-            type="number"
+            value={orderValue}
+            readOnly
             className="h-12 text-right pr-12 text-2xl border border-gray-700 rounded-lg bg-[#1a1b1e] text-white"
           />
           <Image
@@ -132,7 +198,6 @@ export function SwapUI({ market }: { market: string }) {
     </div>
   );
 }
-
 
 function LimitButton({ type, setType }: { type: string; setType: any }) {
   return (

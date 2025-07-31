@@ -1,6 +1,6 @@
 import { RedisClientType, createClient } from "redis";
-import { MessageFromOrderbook } from "./types";
-import { MessageToEngine } from "./types/to";
+import { MessageFromOrderbook, MessageToEngine } from "./types";
+
 
 export class RedisManager {
   private client: RedisClientType;
@@ -28,10 +28,13 @@ export class RedisManager {
         this.client.unsubscribe(id);
         resolve(JSON.parse(message));
       });
-      this.publisher.lPush(
-        "messages",
-        JSON.stringify({ clientId: id, message })
-      );
+      console.log(message)
+      console.log("qweqweqweqweweq")
+      // this.publisher.lPush(
+      //   "messages",
+      //   JSON.stringify({ clientId: id, message })
+      // );
+      return { "msg": "done"}
     });
   }
 

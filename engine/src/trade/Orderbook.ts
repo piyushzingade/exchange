@@ -97,7 +97,7 @@ export class Orderbook {
       if (this.asks[i].price <= order.price && executedQty < order.quantity) {
         const filledQty = Math.min(
           order.quantity - executedQty,
-          this.asks[i].quantity
+          this.asks[i].quantity - this.asks[i].filled
         );
         executedQty += filledQty;
         this.asks[i].filled += filledQty;
@@ -130,7 +130,7 @@ export class Orderbook {
       if (this.bids[i].price >= order.price && executedQty < order.quantity) {
         const amountRemaining = Math.min(
           order.quantity - executedQty,
-          this.bids[i].quantity
+          this.bids[i].quantity - this.bids[i].filled
         );
         executedQty += amountRemaining;
         this.bids[i].filled += amountRemaining;
