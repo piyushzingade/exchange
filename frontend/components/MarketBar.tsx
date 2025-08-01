@@ -12,7 +12,7 @@ export const MarketBar = ({ market }: { market: string }) => {
     // getTicker(market).then(setTicker);
     getTicker(market).then((t) => setTicker(t));
     SignalingManager.getInstance().registerCallback(
-      "ticker",
+      "ticker", 
       (data: any) => {
         console.log("MarketBar ticker data received:", data); // Debug log
         setTicker((prevTicker) => {

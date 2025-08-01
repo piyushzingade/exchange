@@ -124,7 +124,7 @@ export function TradingViewIframe({
 
   return (
     <div
-      className="mt-4 w-full"
+      className="mt-2 w-full"
       style={{ height: typeof height === "number" ? `${height}px` : height }}
     >
       <div

@@ -1,174 +1,235 @@
 "use client";
 
-import { getDepth, getTicker, getTrade } from "@/utils/httpClient";
+import React from "react";
+import { getDepth, getTicker } from "@/utils/httpClient";
 import { SignalingManager } from "@/utils/SignalingManager";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AskTable } from "./AskTable";
 import { BidTable } from "./BidTable";
+import { BookTableHeader } from "./TablesHeaders";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import Trades from "./Trades";
+
+type OrderBookEntry = [string, string];
 
 export function Depth({ market }: { market: string }) {
-  const [bids, setBids] = useState<[string, string][]>([]);
-  const [asks, setAsks] = useState<[string, string][]>([]);
+  const [bids, setBids] = useState<OrderBookEntry[]>([]);
+  const [asks, setAsks] = useState<OrderBookEntry[]>([]);
   const [price, setPrice] = useState<string>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Memoized function to update bids
+  const updateBids = useCallback((newBids: OrderBookEntry[]) => {
+    setBids((originalBids) => {
+      const bidsAfterUpdate = [...originalBids];
+
+      newBids.forEach((newBid) => {
+        const [newPrice, newQuantity] = newBid;
+        const existingIndex = bidsAfterUpdate.findIndex(
+          ([price]) => price === newPrice
+        );
+
+        if (Number(newQuantity) === 0) {
+          // Remove the bid if quantity is 0
+          if (existingIndex !== -1) {
+            bidsAfterUpdate.splice(existingIndex, 1);
+          }
+        } else {
+          // Update existing or add new bid
+          if (existingIndex !== -1) {
+            bidsAfterUpdate[existingIndex][1] = newQuantity;
+          } else {
+            bidsAfterUpdate.push(newBid);
+          }
+        }
+      });
+
+      // Sort bids by price descending and return top 20 for performance
+      return bidsAfterUpdate
+        .sort((a, b) => Number(b[0]) - Number(a[0]))
+        .slice(0, 20);
+    });
+  }, []);
+
+  // Memoized function to update asks
+  const updateAsks = useCallback((newAsks: OrderBookEntry[]) => {
+    setAsks((originalAsks) => {
+      const asksAfterUpdate = [...originalAsks];
+
+      newAsks.forEach((newAsk) => {
+        const [newPrice, newQuantity] = newAsk;
+        const existingIndex = asksAfterUpdate.findIndex(
+          ([price]) => price === newPrice
+        );
+
+        if (Number(newQuantity) === 0) {
+          // Remove the ask if quantity is 0
+          if (existingIndex !== -1) {
+            asksAfterUpdate.splice(existingIndex, 1);
+          }
+        } else {
+          // Update existing or add new ask
+          if (existingIndex !== -1) {
+            asksAfterUpdate[existingIndex][1] = newQuantity;
+          } else {
+            asksAfterUpdate.push(newAsk);
+          }
+        }
+      });
+
+      // Sort asks by price ascending and return top 20 for performance
+      return asksAfterUpdate
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .slice(0, 20);
+    });
+  }, []);
+
+  // Memoized depth update handler
+  const handleDepthUpdate = useCallback(
+    (data: any) => {
+      if (data.bids?.length > 0) {
+        updateBids(data.bids);
+      }
+      if (data.asks?.length > 0) {
+        updateAsks(data.asks);
+      }
+    },
+    [updateBids, updateAsks]
+  );
 
   useEffect(() => {
-    const handleDepthUpdate = (data: any) => {
-      // Update bids
-      setBids((originalBids) => {
-        const bidsAfterUpdate = [...originalBids];
+    const signalingManager = SignalingManager.getInstance();
 
-        data.bids?.forEach((newBid: [string, string]) => {
-          const [newPrice, newQuantity] = newBid;
-          const existingIndex = bidsAfterUpdate.findIndex(
-            ([price]) => price === newPrice
-          );
+    // Initialize data loading
+    const initializeData = async () => {
+      try {
+        setIsLoading(true);
 
-          if (Number(newQuantity) === 0) {
-            // Remove the bid if quantity is 0
-            if (existingIndex !== -1) {
-              bidsAfterUpdate.splice(existingIndex, 1);
-            }
-          } else {
-            // Update existing or add new bid
-            if (existingIndex !== -1) {
-              bidsAfterUpdate[existingIndex][1] = newQuantity;
-            } else {
-              bidsAfterUpdate.push(newBid);
-              // Sort bids by price descending
-              bidsAfterUpdate.sort((a, b) => Number(b[0]) - Number(a[0]));
-            }
-          }
-        });
+        // Fetch initial data in parallel
+        const [depthData, tickerData] = await Promise.allSettled([
+          getDepth(market),
+          getTicker(market),
+        ]);
 
-        return bidsAfterUpdate;
-      });
+        // Handle depth data
+        if (depthData.status === "fulfilled") {
+          setBids(depthData.value.bids.reverse().slice(0, 20));
+          setAsks(depthData.value.asks.slice(0, 20));
+        }
 
-      // Update asks
-      setAsks((originalAsks) => {
-        const asksAfterUpdate = [...originalAsks];
-
-        data.asks?.forEach((newAsk: [string, string]) => {
-          const [newPrice, newQuantity] = newAsk;
-          const existingIndex = asksAfterUpdate.findIndex(
-            ([price]) => price === newPrice
-          );
-
-          if (Number(newQuantity) === 0) {
-            // Remove the ask if quantity is 0
-            if (existingIndex !== -1) {
-              asksAfterUpdate.splice(existingIndex, 1);
-            }
-          } else {
-            // Update existing or add new ask
-            if (existingIndex !== -1) {
-              asksAfterUpdate[existingIndex][1] = newQuantity;
-            } else {
-              asksAfterUpdate.push(newAsk);
-              // Sort asks by price ascending
-              asksAfterUpdate.sort((a, b) => Number(a[0]) - Number(b[0]));
-            }
-          }
-        });
-
-        return asksAfterUpdate;
-      });
+        // Handle price data from ticker
+        if (tickerData.status === "fulfilled") {
+          setPrice(tickerData.value.lastPrice);
+        }
+      } catch (error) {
+        console.error("Error initializing depth data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    // Get initial ticker and set up ticker WebSocket subscription for price updates
-    // getTicker(market).then((t) => setPrice(t.lastPrice));
-
-    // SignalingManager.getInstance().registerCallback(
-    //   "ticker",
-    //   (data: any) => {
-    //     if (data?.lastPrice) {
-    //       setPrice(data.lastPrice);
-    //     }
-    //   },
-    //   `TICKER-${market}`
-    // );
-
-    // SignalingManager.getInstance().sendMessage({
-    //   method: "SUBSCRIBE",
-    //   params: [`ticker.${market}`],
-    // });
-
-    // Register WebSocket callback for depth updates
-    SignalingManager.getInstance().registerCallback(
+    // Register depth callback
+    signalingManager.registerCallback(
       "depth",
       handleDepthUpdate,
       `DEPTH-${market}`
     );
 
-    // Subscribe to depth updates
-    SignalingManager.getInstance().sendMessage({
+    // Subscribe to depth stream
+    signalingManager.sendMessage({
       method: "SUBSCRIBE",
       params: [`depth.${market}`],
     });
 
-    // Fetch initial depth data
-    getDepth(market).then((d) => {
-      setBids(d.bids.reverse());
-      setAsks(d.asks);
-    });
+    // Initialize data
+    initializeData();
 
-    getTicker(market).then((t) => setPrice(t.lastPrice));
-    getTrade(market).then((t) => setPrice(t[0].price));
-
+    // Cleanup function
     return () => {
-      // Cleanup ticker subscription
-      // SignalingManager.getInstance().deRegisterCallback(
-      //   "ticker",
-      //   `TICKER-${market}`
-      // );
-      // SignalingManager.getInstance().sendMessage({
-      //   method: "UNSUBSCRIBE",
-      //   params: [`ticker.${market}`],
-      // });
-
-      // Cleanup depth subscription
-      SignalingManager.getInstance().sendMessage({
+      signalingManager.deRegisterCallback("depth", `DEPTH-${market}`);
+      signalingManager.sendMessage({
         method: "UNSUBSCRIBE",
-        params: [`depth.100ms.${market}`],
+        params: [`depth.${market}`],
       });
-      SignalingManager.getInstance().deRegisterCallback(
-        "depth",
-        `DEPTH-${market}`
-      );
     };
-  }, [market]);
+  }, [market, handleDepthUpdate]);
 
-  return (
-    <div className="bg-[#14151b] rounded-2xl px-2 w-full ">
-      <div className="flex gap-2  rounded-lg w-fit mb-2 ">
-        <div className="px-3 py-1.5 rounded-md bg-[#2a2a2e] text-white text-sm font-medium cursor-pointer">
-          Book
-        </div>
-        <div className="px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2a2a2e] text-sm font-medium cursor-pointer">
-          Trades
+  if (isLoading) {
+    return (
+      <div className="bg-[#14151b] rounded-2xl px-4 h-fit w-full">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-400">Loading order book...</div>
         </div>
       </div>
+    );
+  }
 
-      <TableHeader />
-      <div className="space-y-2">
-        {asks && <AskTable asks={asks} />}
-        {price && (
-          <div className="text-start text-white font-mono text-sm py-1">
-            {price}
+  return (
+    <div className="bg-[#14151b] rounded-2xl w-full max-w-none ">
+      <Tabs defaultValue="Book" className="w-full">
+        <TabsList className="bg-[#14151b] mb-1   w-full justify-start gap-2">
+          <TabsTrigger
+            value="Book"
+            className="px-4 py-2 rounded-md text-gray-400 hover:text-white hover:bg-[#2a2a2e] text-sm font-medium data-[state=active]:bg-[#2a2a2e] data-[state=active]:text-white"
+          >
+            Book
+          </TabsTrigger>
+          <TabsTrigger
+            value="Trades"
+            className="px-4 py-2 rounded-md text-gray-400 hover:text-white hover:bg-[#2a2a2e] text-sm font-medium data-[state=active]:bg-[#2a2a2e] data-[state=active]:text-white"
+          >
+            Trades
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="Book" className="w-full space-y-0">
+          <div className="w-full">
+            <BookTableHeader />
+
+            {/* Order Book Content */}
+            <div className="w-full space-y-1">
+              {/* Asks Section */}
+              <div className="w-full">
+                {asks.length > 0 ? (
+                  <AskTable asks={asks} />
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    No asks available
+                  </div>
+                )}
+              </div>
+
+              {/* Current Price */}
+              {price && (
+                <div className="w-full">
+                  <div className="text-center text-white font-mono text-lg font-semibold py-2">
+                    $
+                    {Number(price).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 8,
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Bids Section */}
+              <div className="w-full">
+                {bids.length > 0 ? (
+                  <BidTable bids={bids} />
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    No bids available
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-        {bids && <BidTable bids={bids} />}
-      </div>
-    </div>
-  );
-}
+        </TabsContent>
 
-
-function TableHeader() {
-  return (
-    <div className="flex justify-between text-xs mb-2">
-      <div className="text-white">Price</div>
-      <div className="text-slate-500">Size</div>
-      <div className="text-slate-500">Total</div>
+        <TabsContent value="Trades" className="w-full">
+          <Trades market={market} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -2,11 +2,7 @@ import { Router } from "express";
 import { Client } from "pg";
 
 const client = new Client({
-  user: "your_user",
-  host: "localhost",
-  database: "my_database",
-  password: "your_password",
-  port: 5432,
+  connectionString: "postgresql://user:root@localhost:5432/my_database",
 });
 
 // Connect to database

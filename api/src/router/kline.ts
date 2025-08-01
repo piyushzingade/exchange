@@ -1,15 +1,12 @@
 import { Client } from "pg";
 import { Router } from "express";
 
-const pgClient = new Client({
-  user: "your_user",
-  host: "localhost",
-  database: "my_database",
-  password: "your_password",
-  port: 5432,
+const client = new Client({
+  connectionString: "postgresql://user:root@localhost:5432/my_database",
 });
+
 // const pgClient = new Client({connectionString : "postgresql://your_user:your_password@localhost:5432/my_database"})
-pgClient.connect();
+client.connect();
 
 export const klineRouter = Router();
 
@@ -53,7 +50,7 @@ klineRouter.get("/", async (req, res) => {
   }
 
   try {
-    const result = await pgClient.query(query, [
+    const result = await client.query(query, [
       new Date(startTimeNum * 1000), 
       new Date(endTimeNum * 1000), // Convert Unix timestamp to Date
     ]);

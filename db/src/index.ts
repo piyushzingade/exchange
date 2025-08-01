@@ -2,14 +2,11 @@ import { Client } from "pg";
 import { createClient } from "redis";
 import { DbMessage } from "./types";
 
-const pgClient = new Client({
-  user: "your_user",
-  host: "localhost",
-  database: "my_database",
-  password: "your_password",
-  port: 5432,
+const client = new Client({
+  connectionString: "postgresql://user:root@localhost:5432/my_database",
 });
-pgClient.connect();
+
+client.connect();
 
 async function main() {
   const redisClient = createClient();
@@ -29,7 +26,7 @@ async function main() {
         const query = "INSERT INTO tata_prices (time, price) VALUES ($1, $2)";
         // TODO: How to add volume?
         const values = [timestamp, price];
-        await pgClient.query(query, values);
+        await client.query(query, values);
       }
     }
   }

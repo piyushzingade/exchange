@@ -29,7 +29,7 @@ export const BidTable = ({ bids }: { bids: [string, string][] }) => {
   return (
     <div
       ref={containerRef}
-      className="max-h-[200px] overflow-y-auto scrollbar-hide"
+      className="max-h-[250px] overflow-y-auto scrollbar-hide"
       onScroll={handleScroll}
       style={{
         scrollbarWidth: "none",

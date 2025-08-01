@@ -27,8 +27,10 @@ export class SignalingManager {
     this.ws = new WebSocket(BASE_URL);
 
     this.ws.onopen = () => {
+      console.log("WebSocket connected");
       this.initialized = true;
       this.bufferedMessage.forEach((message) => {
+        console.log("Sending buffered message:", message);
         this.ws.send(JSON.stringify(message));
       });
       this.bufferedMessage = [];
@@ -36,7 +38,22 @@ export class SignalingManager {
 
     this.ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      const type = message.data.e;
+      console.log("Received WebSocket message:", message);
+
+      // Handle subscription responses
+      if (message.result !== undefined) {
+        console.log("Subscription response:", message);
+        return;
+      }
+
+      // Handle error responses
+      if (message.error) {
+        console.error("WebSocket error:", message.error);
+        return;
+      }
+
+      const type = message.data?.e;
+      console.log("Message type:", type);
 
       if (this.callbacks.has(type)) {
         const callbacks = this.callbacks.get(type)!;
@@ -57,8 +74,45 @@ export class SignalingManager {
             const updatedAsks = message.data.a;
             callBack({ bids: updatedBids, asks: updatedAsks });
           }
+          if (type === "markPrice") {
+            // Fixed: Extract correct properties from WebSocket message
+            const markPriceData = {
+              price: message.data.p || message.data.c, // Use 'p' for price or 'c' for close price
+              quantity: message.data.q || "0", // Quantity
+              time: message.data.t || message.data.E || Date.now(), // Use 't' for time or 'E' for event time
+            };
+            console.log("Processed markPrice data:", markPriceData);
+            callBack(markPriceData);
+          }
+          // Add support for trades stream
+          if (type === "markPrice") {
+            const markPriceData = {
+              price: message.data.p || message.data.c, // 'p' for price or 'c' for close
+              quantity: message.data.q || "0",
+              time: message.data.t || message.data.E || Date.now(),
+            };
+            console.log("Processed markPrice data:", markPriceData);
+            callBack(markPriceData);
+          }
         });
+      } else if (type) {
+        console.log(`No callbacks registered for type: ${type}`);
       }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    this.ws.onclose = (event) => {
+      console.log("WebSocket closed:", event);
+      this.initialized = false;
+
+      // Attempt to reconnect after 3 seconds
+      setTimeout(() => {
+        console.log("Attempting to reconnect...");
+        this.init();
+      }, 3000);
     };
   }
 
@@ -68,7 +122,10 @@ export class SignalingManager {
       id: this.id++,
     };
 
+    console.log("Sending WebSocket message:", messageToSend);
+
     if (!this.initialized) {
+      console.log("WebSocket not initialized, buffering message");
       this.bufferedMessage.push(messageToSend);
       return;
     }
