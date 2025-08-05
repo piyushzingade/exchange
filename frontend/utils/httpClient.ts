@@ -4,12 +4,59 @@ import { Depth, KLine, Ticker, Trade } from "./types";
 export const BASE_URL = "http://localhost:3001/api/v1";
 
 export async function getAllTickers(): Promise<Ticker[]> {
-  const response = await axios.get(`${BASE_URL}/tickers`);
-  return response.data;
+  try {
+    const response = await axios.get(`${BASE_URL}/tickers`);
+    console.log('Tickers API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data,
+      type: Array.isArray(response.data) ? 'array' : typeof response.data
+    });
+    
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
+
+    // If response.data is wrapped in another object, try to extract the tickers array
+    const tickersData = Array.isArray(response.data) ? response.data : 
+                      response.data.tickers || response.data.data || response.data.result;
+
+    if (!Array.isArray(tickersData)) {
+      throw new Error(`Invalid response format. Expected array, got ${typeof tickersData}`);
+    }
+
+    // Validate that each ticker has the required properties
+    const validTickers = tickersData.filter(ticker => 
+      ticker && 
+      typeof ticker === 'object' && 
+      'symbol' in ticker
+    );
+
+    if (validTickers.length === 0) {
+      throw new Error('No valid tickers found in response');
+    }
+
+    return validTickers;
+  } catch (error) {
+    console.error('Error fetching tickers:', error);
+    if (axios.isAxiosError(error)) {
+      throw new Error(`Failed to fetch tickers: ${error.message}. Status: ${error.response?.status}`);
+    }
+    throw error;
+  }
 }
 
 export async function getTicker(market: string): Promise<Ticker> {
+  if (!market) {
+    throw new Error('Market parameter is required');
+  }
+
   const tickers = await getAllTickers();
+  console.log('GetTicker - Received tickers:', {
+    tickersLength: tickers?.length,
+    market,
+    sampleTicker: tickers?.[0]
+  });
 
   // Try different matching strategies
   let ticker =
@@ -19,7 +66,7 @@ export async function getTicker(market: string): Promise<Ticker> {
     tickers.find((t) => t.symbol.toLowerCase() === market.toLowerCase()) ||
     // Replace underscore with hyphen
     tickers.find((t) => t.symbol === market.replace("_", "-")) ||
-    // Replace hyphen with underscore
+    // Replace hyphen with undersacore
     tickers.find((t) => t.symbol === market.replace("-", "_")) ||
     // Uppercase version
     tickers.find((t) => t.symbol === market.toUpperCase()) ||
@@ -75,4 +122,22 @@ export async function getKlines(
 export async function getMarkets(): Promise<string[]> {
   const response = await axios.get(`${BASE_URL}/markets`);
   return response.data;
+}
+
+export async function placeOrder(order: {
+  price: number;
+  quantity: number;
+  userId: string;
+  market: string;
+  side: 'buy' | 'sell';
+}) {
+  try {
+    const response = await axios.post(`${BASE_URL}/order`, order);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.message || 'Failed to place order');
+    }
+    throw error;
+  }
 }

@@ -8,11 +8,15 @@ import LimitSwap from "./LimitSwap";
 import MarketSwap from "./MarketSwap";
 
 export function SwapUI() {
-  const [activeTab, setActiveTab] = useState("sell");
-  const [type, setType] = useState("limit");
+  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+  const [type, setType] = useState<"limit" | "market">("limit");
   const [price, setPrice] = useState("0");  
   const [quantity, setQuantity] = useState("0");
   const [orderValue, setOrderValue] = useState("0");
+  
+  // Use activeTab as the side
+  const side = activeTab;
+
 
   useEffect(() => {
     const priceNum = parseFloat(price) || 0;
@@ -53,6 +57,7 @@ export function SwapUI() {
               quantity={quantity}
               setQuantity={setQuantity}
               orderValue={orderValue}
+              side={activeTab}
             />
           </TabsContent>
           <TabsContent

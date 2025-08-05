@@ -104,8 +104,10 @@ export class Engine {
    * Initialize with default orderbooks and demo balances
    */
   private initializeDefaults(): void {
-    // Create default TATA/INR orderbook
-    this.orderbooks = [new Orderbook("TATA", [], [], 0, 0)];
+    // Create default orderbook for TATA_INR market
+    this.orderbooks = [
+      new Orderbook("TATA_INR", [], [], 0, 0)
+    ];
     this.createDemoUserBalances();
   }
 
@@ -680,8 +682,8 @@ export class Engine {
    * Create demo user balances for testing
    */
   private createDemoUserBalances(): void {
-    const demoUsers = ["1", "2", "5"];
-    const initialBalance = 10_000_000; // 10M
+    const demoUsers = ["1", "2", "3", "4", "5"];
+    const initialBalance = 10_000_000; 
 
     demoUsers.forEach((userId) => {
       this.balances.set(userId, {

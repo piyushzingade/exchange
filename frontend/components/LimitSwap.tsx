@@ -2,7 +2,11 @@ import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState } from "react";
+import axios from "axios";
 
+const BASE_URL = "http://localhost:3001/api/v1";
+import { placeOrder } from "@/utils/httpClient";
+import { randomBytes } from "crypto";
 
 export default function LimitSwap({
   price,
@@ -10,14 +14,55 @@ export default function LimitSwap({
   quantity,
   setQuantity,
   orderValue,
+  side,
+  market = "TATA_INR", // default market for TATA/INR trading
+  userId = "1" // default user ID
 }: {
   price: string;
-  setPrice: any;
+  setPrice: (price: string) => void;
   quantity: string;
-  setQuantity: any;
-  orderValue:string
+  setQuantity: (quantity: string) => void;
+  orderValue: string;
+  side: "buy" | "sell";
+  market?: string;
+  userId?: string;
 }) {
-  const [sliderValue , setSliderValue] = useState()
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const randomUserId = () => {
+    return (Math.floor(Math.random() * 5) + 1).toString();
+  }
+  
+  const handleSubmit = async () => {
+    if (!price || !quantity || parseFloat(price) <= 0 || parseFloat(quantity) <= 0) {
+      setError('Please enter valid price and quantity');
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      await placeOrder({
+        price: parseFloat(price),
+        quantity: parseFloat(quantity),
+        userId :randomUserId(),
+        market,
+        side
+      });
+      
+      // Reset form after successful order
+      setPrice("0");
+      setQuantity("0");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to place order');
+      console.error('Order placement failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const handleInput = (value: string) => {
     // Remove all non-numeric characters except decimal point
     const sanitized = value.replace(/[^0-9.]/g, "");
@@ -108,22 +153,6 @@ export default function LimitSwap({
         </div>
       </div>
 
-      {/* Slider */}
-      {/* <div className="w-full mb-4 px-1">
-        <Input
-          type="range"
-          min={0}
-          max={100}
-          value={sliderValue}
-          inputMode="numeric"
-          className="w-full accent-blue-500"
-          onChange={(e) => setSliderValue(e.target.value)}
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>{sliderValue}</span>
-          <span>100%</span>
-        </div>
-      </div> */}
 
       {/* Order Value */}
       <div className="mb-4">
@@ -144,10 +173,22 @@ export default function LimitSwap({
         </div>
       </div>
 
-      {/* Auth Buttons */}
+      {/* Order Button and Error Message */}
       <div className="flex flex-col gap-2 mb-4">
-        <Button className="bg-white text-black rounded-xl h-12 font-semibold">
-          Place Order
+        {error && (
+          <div className="text-red-500 text-sm mb-2">
+            {error}
+          </div>
+        )}
+        <Button 
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className={`${
+            side === 'buy' 
+              ? 'bg-[#00c278] hover:bg-[#00b36e]' 
+              : 'bg-[#fd4b4e] hover:bg-[#e04447]'
+          } text-white rounded-xl h-12 font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}>
+          {isLoading ? 'Placing Order...' : `Place ${side.toUpperCase()} Order`}
         </Button>
       </div>
 
