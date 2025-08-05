@@ -2,86 +2,91 @@ import { Router } from "express";
 
 export const tickerRouter = Router();
 
-// Mock ticker data
-const generateMockTickers = () => {
-  const basePrice = {
-    TATA_INR : 2000,
-  };
-
-  return Object.entries(basePrice).map(([symbol, price]) => {
-    // Generate realistic variations
-    const priceVariation = (Math.random() - 0.5) * 0.1; // ±5% variation
-    const currentPrice = price * (1 + priceVariation);
-    const change24h = (Math.random() - 0.5) * 0.2; // ±10% daily change
-    const volume = Math.random() * 10000000; // Random volume up to 10M
-
-    const absoluteChange = parseFloat((currentPrice * change24h).toFixed(2));
-    const percentChange = parseFloat((change24h * 100).toFixed(2));
-
-    return {
-      symbol,
-      price: parseFloat(currentPrice.toFixed(2)),
-      lastPrice: parseFloat(currentPrice.toFixed(2)), // Add this field
-      high: parseFloat((currentPrice * 1.05).toFixed(2)),
-      low: parseFloat((currentPrice * 0.95).toFixed(2)),
-      volume: parseFloat(volume.toFixed(2)),
-      quoteVolume: parseFloat((volume * currentPrice).toFixed(2)),
-      change: absoluteChange,
-      priceChange: absoluteChange, // Add this field
-      changePercent: percentChange,
-      priceChangePercent: percentChange, // Add this field
-      lastUpdateId: Date.now(),
-      timestamp: Date.now(),
-    };
-  });
+// Base prices for different symbols
+const BASE_PRICES = {
+  TATA_INR: 2000,
+  // Add more symbols here as needed
+  // RELIANCE_INR: 2500,
+  // HDFC_INR: 1800,
 };
 
+// Generate mock ticker data
+const generateMockTicker = (symbol: string, basePrice: number) => {
+  // Simple price variation between -5% to +5%
+  const variation = (Math.random() - 0.5) * 0.1;
+  const currentPrice = basePrice * (1 + variation);
+
+  // Daily change between -10% to +10%
+  const dailyChange = (Math.random() - 0.5) * 0.2;
+  const changeAmount = currentPrice * dailyChange;
+  const changePercent = dailyChange * 100;
+
+  // Simple volume calculation
+  const volume = Math.floor(Math.random() * 1000000); // 0 to 1M
+
+  return {
+    symbol: symbol,
+    price: Math.round(currentPrice * 100) / 100, // Round to 2 decimals
+    lastPrice: Math.round(currentPrice * 100) / 100,
+    high: Math.round(currentPrice * 1.05 * 100) / 100,
+    low: Math.round(currentPrice * 0.95 * 100) / 100,
+    volume: volume,
+    quoteVolume: Math.round(volume * currentPrice * 100) / 100,
+    change: Math.round(changeAmount * 100) / 100,
+    priceChange: Math.round(changeAmount * 100) / 100,
+    changePercent: Math.round(changePercent * 100) / 100,
+    priceChangePercent: Math.round(changePercent * 100) / 100,
+    timestamp: Date.now(),
+  };
+};
+
+// Get all tickers
 tickerRouter.get("/", (req, res) => {
   try {
-    const mockTickers = generateMockTickers();
-    console.log("Serving mock ticker data");
+    const tickers = Object.entries(BASE_PRICES).map(([symbol, price]) =>
+      generateMockTicker(symbol, price)
+    );
 
-    return res.json({
+    res.json({
       success: true,
-      data: mockTickers,
+      data: tickers,
       timestamp: Date.now(),
-      source: "mock",
     });
   } catch (error) {
-    console.error("Tickers error:", error);
-    return res.status(500).json({
+    console.error("Error generating tickers:", error);
+    res.status(500).json({
       success: false,
-      error: "Failed to generate mock data",
+      error: "Failed to get ticker data",
     });
   }
 });
 
-// Endpoint for a specific ticker
+// Get specific ticker
 tickerRouter.get("/:symbol", (req, res) => {
   try {
-    const { symbol } = req.params;
-    const mockTickers = generateMockTickers();
-    const ticker = mockTickers.find((t) => t.symbol === symbol.toUpperCase());
+    const symbol = req.params.symbol.toUpperCase();
+    const basePrice = BASE_PRICES[symbol as keyof typeof BASE_PRICES];
 
-    if (ticker) {
-      return res.json({
-        success: true,
-        data: ticker,
-        timestamp: Date.now(),
-        source: "mock",
+    if (!basePrice) {
+      return res.status(404).json({
+        success: false,
+        error: "Symbol not found",
+        availableSymbols: Object.keys(BASE_PRICES),
       });
     }
 
-    return res.status(404).json({
-      success: false,
-      error: "Ticker not found",
-      availableTickers: mockTickers.map((t) => t.symbol),
+    const ticker = generateMockTicker(symbol, basePrice);
+
+    res.json({
+      success: true,
+      data: ticker,
+      timestamp: Date.now(),
     });
   } catch (error) {
-    console.error("Single ticker error:", error);
+    console.error("Error getting ticker:", error);
     res.status(500).json({
       success: false,
-      error: "Internal server error",
+      error: "Failed to get ticker data",
     });
   }
 });

@@ -17,7 +17,7 @@ export interface Fill {
   markerOrderId: string;
 }
 
-// Insert an order into orderList based on price 
+// Inserts an order into the list at the correct position based on price
 function insertSorted(
   orderList: Order[],
   order: Order,
@@ -25,7 +25,7 @@ function insertSorted(
 ) {
   let i = 0;
   while (i < orderList.length) {
-    // determine where to insert  based on asc/desc
+    // Complex logic: determines where to insert based on ascending/descending
     if (
       (descending && orderList[i].price < order.price) ||
       (!descending && orderList[i].price > order.price)
@@ -38,8 +38,8 @@ function insertSorted(
 }
 
 export class Orderbook {
-  bids: Order[] = [];
-  asks: Order[] = [];
+  bids: Order[] = []; // Sorted descending
+  asks: Order[] = []; // Sorted ascending
   depthBids = new Map<number, number>();
   depthAsks = new Map<number, number>();
   baseAsset: string;
@@ -58,17 +58,15 @@ export class Orderbook {
     this.lastTradeId = lastTradeId || 0;
     this.currentPrice = currentPrice || 0;
 
-    // Insert initial orders sorted
+    // Populating book with initial orders using addOrder (matching included)
     for (const b of bids) this.addOrder(b);
     for (const a of asks) this.addOrder(a);
   }
 
-  // return ticker 
   ticker() {
     return `${this.baseAsset}_${this.quoteAsset}`;
   }
 
-  // return 
   getSnapshot() {
     return {
       baseAsset: this.baseAsset,
@@ -80,6 +78,7 @@ export class Orderbook {
   }
 
   addOrder(order: Order): { executedQty: number; fills: Fill[] } {
+    // Complex logic: routes based on order type
     const result =
       order.side === "buy" ? this.matchBid(order) : this.matchAsk(order);
     order.filled = result.executedQty;
@@ -101,10 +100,10 @@ export class Orderbook {
     return result;
   }
 
+  // Core matching logic for buy orders against asks
   private matchBid(order: Order): { fills: Fill[]; executedQty: number } {
     const fills: Fill[] = [];
     let executedQty = 0;
-
     let i = 0;
     while (
       i < this.asks.length &&
@@ -126,7 +125,7 @@ export class Orderbook {
           otherUserId: ask.userId,
           markerOrderId: ask.orderId,
         });
-        // -fillQty executed from total qty 
+
         this.updateDepth(this.depthAsks, ask.price, -fillQty);
       }
 
@@ -140,10 +139,10 @@ export class Orderbook {
     return { fills, executedQty };
   }
 
+  // Core matching logic for sell orders against bids
   private matchAsk(order: Order): { fills: Fill[]; executedQty: number } {
     const fills: Fill[] = [];
     let executedQty = 0;
-
     let i = 0;
     while (
       i < this.bids.length &&
@@ -170,7 +169,7 @@ export class Orderbook {
       }
 
       if (bid.filled === bid.quantity) {
-        this.bids.splice(i, 1); //  Remove the 
+        this.bids.splice(i, 1); // Remove fully filled bid
       } else {
         i++;
       }
