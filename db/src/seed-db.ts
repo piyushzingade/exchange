@@ -9,7 +9,9 @@ const { Client } = require("pg");
 //   port: 5432,
 // });
 
-const client = new Client({ connectionString: "postgresql://user:root@localhost:5432/my_database" });
+const client = new Client({
+  connectionString: "postgresql://myuser:mypassword@localhost:5432/mydatabase",
+});
 async function initializeDB() {
   
   try {

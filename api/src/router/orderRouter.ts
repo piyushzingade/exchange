@@ -13,7 +13,6 @@ orderRouter.post("/" , async (req , res)=>{
               .send("Some required fields are missing in Order Router");
 
         }
-        console.log(price)
         const response = await RedisManager.getInstance().sendAndAwait({
           type: CREATE_ORDER,
           data: {

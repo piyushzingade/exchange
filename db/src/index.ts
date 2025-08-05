@@ -3,7 +3,7 @@ import { createClient } from "redis";
 import { DbMessage } from "./types";
 
 const client = new Client({
-  connectionString: "postgresql://user:root@localhost:5432/my_database",
+  connectionString: "postgresql://myuser:mypassword@localhost:5432/mydatabase",
 });
 
 client.connect();

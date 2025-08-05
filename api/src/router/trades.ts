@@ -6,9 +6,9 @@ export const tradesRouter = Router();
 
 tradesRouter.get("/", async (req, res) => {
   try {
-    const { market } = req.query;
+    const { symbol } = req.query;
 
-    if (!market) {
+    if (!symbol) {
       return res.status(400).json({ error: "Market parameter is required" });
     }
 
@@ -59,7 +59,7 @@ tradesRouter.get("/", async (req, res) => {
     // Filter mock data based on market (in real implementation, this would be a DB query)
     const filteredTrades = mockTrades.map((trade) => ({
       ...trade,
-      symbol: market as string,
+      symbol: symbol as string,
     }));
 
     res.json(filteredTrades);

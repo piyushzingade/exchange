@@ -9,14 +9,39 @@ export const MarketBar = ({ market }: { market: string }) => {
   const [ticker, setTicker] = useState<Ticker | null>(null);
 
   useEffect(() => {
-    // getTicker(market).then(setTicker);
-    getTicker(market).then((t) => setTicker(t));
+    // Load initial ticker data
+    getTicker(market)
+      .then((t) => {
+        console.log("Initial ticker data:", t); // Debug log
+        setTicker(t);
+      })
+      .catch((error) => {
+        console.error("Error loading ticker:", error);
+      });
+
+    // Register WebSocket callback for real-time updates
     SignalingManager.getInstance().registerCallback(
-      "ticker", 
+      "ticker",
       (data: any) => {
         console.log("MarketBar ticker data received:", data); // Debug log
         setTicker((prevTicker) => {
-          if (!prevTicker) return prevTicker;
+          // If no prevTicker, use the incoming data as base
+          if (!prevTicker) {
+            return {
+              firstPrice: data?.firstPrice || 0,
+              high: data?.high || 0,
+              lastPrice: data?.lastPrice || 0,
+              low: data?.low || 0,
+              priceChange: data?.priceChange || 0,
+              priceChangePercent: data?.priceChangePercent || 0,
+              quoteVolume: data?.quoteVolume || 0,
+              symbol: data?.symbol || market,
+              trades: data?.trades || 0,
+              volume: data?.volume || 0,
+            };
+          }
+
+          // Update existing ticker with new data
           return {
             firstPrice: data?.firstPrice ?? prevTicker.firstPrice,
             high: data?.high ?? prevTicker.high,
@@ -34,6 +59,7 @@ export const MarketBar = ({ market }: { market: string }) => {
       },
       `TICKER-${market}`
     );
+
     SignalingManager.getInstance().sendMessage({
       method: "SUBSCRIBE",
       params: [`ticker.${market}`],
@@ -51,48 +77,47 @@ export const MarketBar = ({ market }: { market: string }) => {
     };
   }, [market]);
 
+  // Debug log to see what ticker data we have
+  console.log("Current ticker state:", ticker);
+
   return (
     <div>
-      <div className="flex items-center flex-row  overflow-hidden bg-[#14151b] p-3 rounded-xl h-[72px] mx-3">
+      <div className="flex items-center flex-row overflow-hidden bg-[#14151b] p-3 rounded-xl h-[72px] mx-3">
         <div className="flex items-center justify-between flex-row no-scrollbar overflow-auto pr-4 gap-[32px]">
           <Ticker market={market} />
           <div className="flex items-center flex-row space-x-8 pl-4">
             <div className="flex flex-col h-full justify-center">
-              <p
-                className={`font-medium tabular-nums text-greenText text-md text-green-500`}
-              >
-                ${ticker?.lastPrice}
+              <p className="font-medium tabular-nums text-md text-green-500">
+                ${ticker?.lastPrice || "0.00"}
               </p>
-              <p className="font-medium text-sm  tabular-nums">
-                ${ticker?.lastPrice}
+              <p className="font-medium text-sm tabular-nums">
+                ${ticker?.lastPrice || "0.00"}
               </p>
             </div>
             <div className="flex flex-col">
-              <p className={`font-medium text-xs text-slate-400 `}>
-                24H Change
-              </p>
+              <p className="font-medium text-xs text-slate-400">24H Change</p>
               <p
-                className={` text-sm font-medium tabular-nums leading-5 text-greenText ${
-                  Number(ticker?.priceChange) > 0
+                className={`text-sm font-medium tabular-nums leading-5 ${
+                  Number(ticker?.priceChange || 0) > 0
                     ? "text-green-500"
                     : "text-red-500"
                 }`}
               >
-                {Number(ticker?.priceChange) > 0 ? "+" : ""}{" "}
-                {ticker?.priceChange}{" "}
-                {Number(ticker?.priceChangePercent)?.toFixed(2)}%
+                {Number(ticker?.priceChange || 0) > 0 ? "+" : ""}
+                {ticker?.priceChange || "0.00"} (
+                {Number(ticker?.priceChangePercent || 0).toFixed(2)}%)
               </p>
             </div>
             <div className="flex flex-col">
               <p className="font-medium text-xs text-slate-400">24H High</p>
-              <p className="text-sm font-medium tabular-nums leading-5  ">
-                {ticker?.high}
+              <p className="text-sm font-medium tabular-nums leading-5">
+                {ticker?.high || "0.00"}
               </p>
             </div>
             <div className="flex flex-col">
               <p className="font-medium text-xs text-slate-400">24H Low</p>
-              <p className="text-sm font-medium tabular-nums leading-5 ">
-                {ticker?.low}
+              <p className="text-sm font-medium tabular-nums leading-5">
+                {ticker?.low || "0.00"}
               </p>
             </div>
             <button
@@ -101,11 +126,9 @@ export const MarketBar = ({ market }: { market: string }) => {
               data-rac=""
             >
               <div className="flex flex-col">
-                <p className="font-medium  text-slate-400 text-sm">
-                  24H Volume
-                </p>
-                <p className="mt-1  font-medium tabular-nums leading-5 text-sm ">
-                  {ticker?.volume}
+                <p className="font-medium text-slate-400 text-sm">24H Volume</p>
+                <p className="mt-1 font-medium tabular-nums leading-5 text-sm">
+                  {ticker?.volume || "0"}
                 </p>
               </div>
             </button>
