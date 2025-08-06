@@ -70,20 +70,21 @@ export class SignalingManager {
             callBack(newTicker);
           }
           if (type === "depth") {
-            const updatedBids = message.data.b;
-            const updatedAsks = message.data.a;
+            const updatedBids = message.data.b || [];
+            const updatedAsks = message.data.a || [];
+            console.log('Received depth update:', { bids: updatedBids, asks: updatedAsks });
             callBack({ bids: updatedBids, asks: updatedAsks });
           }
-          if (type === "markPrice") {
-            // Fixed: Extract correct properties from WebSocket message
-            const markPriceData = {
-              price: message.data.p || message.data.c, // Use 'p' for price or 'c' for close price
-              quantity: message.data.q || "0", // Quantity
-              time: message.data.t || message.data.E || Date.now(), // Use 't' for time or 'E' for event time
-            };
-            console.log("Processed markPrice data:", markPriceData);
-            callBack(markPriceData);
-          }
+          // if (type === "markPrice") {
+          //   // Fixed: Extract correct properties from WebSocket message
+          //   const markPriceData = {
+          //     price: message.data.p || message.data.c, // Use 'p' for price or 'c' for close price
+          //     quantity: message.data.q || "0", // Quantity
+          //     time: message.data.t || message.data.E || Date.now(), // Use 't' for time or 'E' for event time
+          //   };
+          //   console.log("Processed markPrice data:", markPriceData);
+          //   callBack(markPriceData);
+          // }
           // Add support for trades stream
           if (type === "markPrice") {
             const markPriceData = {

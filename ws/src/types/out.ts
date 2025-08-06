@@ -22,4 +22,13 @@ export type DepthUpdateMessage = {
   };
 };
 
+export type TradeUpdateMessage = {
+  type : "markPrice";
+  data : {
+    p? : number;
+    q?: number;
+    t?: string;
+  }
+}
+
 export type OutgoingMessage = TickerUpdateMessage | DepthUpdateMessage;

@@ -588,32 +588,15 @@ export class Engine {
   ): void {
     const orderbook = this.findOrderbook(market);
     const depth = orderbook.getDepth();
-
-    if (side === "buy") {
-      // When buying, asks get consumed and bids might be added
-      const updatedAsks = depth.asks.filter((ask) =>
-        fills.some((fill) => fill.price === ask[0])
-      ) as [string, string][];
-      const updatedBid = depth.bids.find((bid) => bid[0] === orderPrice);
-
-      this.publishDepthMessage(
-        market,
-        updatedAsks,
-        updatedBid ? ([updatedBid] as [string, string][]) : []
-      );
-    } else {
-      // When selling, bids get consumed and asks might be added
-      const updatedBids = depth.bids.filter((bid) =>
-        fills.some((fill) => fill.price === bid[0])
-      ) as [string, string][];
-      const updatedAsk = depth.asks.find((ask) => ask[0] === orderPrice);
-
-      this.publishDepthMessage(
-        market,
-        updatedAsk ? ([updatedAsk] as [string, string][]) : [],
-        updatedBids
-      );
-    }
+    
+    // Send current state immediately
+    this.publishDepthMessage(market, depth.asks, depth.bids);
+    
+    // Schedule another update to ensure state is consistent
+    setTimeout(() => {
+      const updatedDepth = orderbook.getDepth();
+      this.publishDepthMessage(market, updatedDepth.asks, updatedDepth.bids);
+    }, 100);
   }
 
   /**

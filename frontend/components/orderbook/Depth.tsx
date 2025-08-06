@@ -17,9 +17,13 @@ export function Depth({ market }: { market: string }) {
   const [asks, setAsks] = useState<OrderBookEntry[]>([]);
   const [price, setPrice] = useState<string>();
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Memoized function to update bids
   const updateBids = useCallback((newBids: OrderBookEntry[]) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
     setBids((originalBids) => {
       const bidsAfterUpdate = [...originalBids];
 
@@ -45,14 +49,20 @@ export function Depth({ market }: { market: string }) {
       });
 
       // Sort bids by price descending and return top 20 for performance
-      return bidsAfterUpdate
+      const sortedBids = bidsAfterUpdate
         .sort((a, b) => Number(b[0]) - Number(a[0]))
         .slice(0, 20);
+
+      setTimeout(() => setIsProcessing(false), 0);
+      return sortedBids;
     });
   }, []);
 
   // Memoized function to update asks
   const updateAsks = useCallback((newAsks: OrderBookEntry[]) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
     setAsks((originalAsks) => {
       const asksAfterUpdate = [...originalAsks];
 
@@ -77,24 +87,39 @@ export function Depth({ market }: { market: string }) {
         }
       });
 
-      // Sort asks by price ascending and return top 20 for performance
-      return asksAfterUpdate
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
+      // Sort asks by price descending (high to low) and return top 20 for performance
+      const sortedAsks = asksAfterUpdate
+        .sort((a, b) => Number(b[0]) - Number(a[0]))
         .slice(0, 20);
+
+      setTimeout(() => setIsProcessing(false), 0);
+      return sortedAsks;
     });
   }, []);
 
   // Memoized depth update handler
   const handleDepthUpdate = useCallback(
     (data: any) => {
-      if (data.bids?.length > 0) {
-        updateBids(data.bids);
+      console.log('Received depth update:', data);
+      // Always update both sides of the order book
+      if (data.bids) {
+        // Sort bids high to low
+        const sortedBids = [...data.bids]
+          .sort((a: [string, string], b: [string, string]) => 
+            Number(b[0]) - Number(a[0])
+          ).slice(0, 20);
+        setBids(sortedBids);
       }
-      if (data.asks?.length > 0) {
-        updateAsks(data.asks);
+      if (data.asks) {
+        // Sort asks high to low (reversed from before)
+        const sortedAsks = [...data.asks]
+          .sort((a: [string, string], b: [string, string]) => 
+            Number(b[0]) - Number(a[0])
+          ).slice(0, 20);
+        setAsks(sortedAsks);
       }
     },
-    [updateBids, updateAsks]
+    []  // No dependencies as we're using setState directly
   );
 
   useEffect(() => {
@@ -138,7 +163,7 @@ export function Depth({ market }: { market: string }) {
     // Subscribe to depth stream
     signalingManager.sendMessage({
       method: "SUBSCRIBE",
-      params: [`depth.${market}`],
+      params: [`depth@${market}`], // Changed to match engine's format
     });
 
     // Initialize data
@@ -149,7 +174,7 @@ export function Depth({ market }: { market: string }) {
       signalingManager.deRegisterCallback("depth", `DEPTH-${market}`);
       signalingManager.sendMessage({
         method: "UNSUBSCRIBE",
-        params: [`depth.${market}`],
+        params: [`depth@${market}`],
       });
     };
   }, [market, handleDepthUpdate]);

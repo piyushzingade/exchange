@@ -1,12 +1,10 @@
+"use client"
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState } from "react";
-import axios from "axios";
+import { getUserBalance, placeOrder } from "@/utils/httpClient";
 
-const BASE_URL = "http://localhost:3001/api/v1";
-import { placeOrder } from "@/utils/httpClient";
-import { randomBytes } from "crypto";
 
 export default function LimitSwap({
   price,
@@ -29,6 +27,7 @@ export default function LimitSwap({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // const balance = getUserBalance(userId);
 
   const randomUserId = () => {
     return (Math.floor(Math.random() * 5) + 1).toString();
@@ -44,10 +43,10 @@ export default function LimitSwap({
       setError(null);
       setIsLoading(true);
       
-      await placeOrder({
+      const response = await placeOrder({
         price: parseFloat(price),
         quantity: parseFloat(quantity),
-        userId :randomUserId(),
+        userId: randomUserId(),
         market,
         side
       });
@@ -96,7 +95,7 @@ export default function LimitSwap({
     <div className="w-full">
       <div className="flex justify-between items-center text-xs text-gray-400 mb-2">
         <span className="text-gray-600">Available Equity</span>
-        <span className="text-white">-</span>
+        <span className="text-white"> 0</span>
       </div>
       <div className="mb-4">
         <div className="flex justify-between items-center text-xs text-gray-400 mb-1">

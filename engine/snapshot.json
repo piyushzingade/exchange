@@ -4,41 +4,49 @@
       "baseAsset": "TATA",
       "bids": [
         {
-          "price": 3000,
+          "price": 2000,
           "quantity": 10,
-          "orderId": "i0ar2g8fin9pednrp4bo0p",
-          "filled": 0,
+          "orderId": "fq4tedre7li4ecnxumhv2h",
+          "filled": 1,
           "side": "buy",
           "userId": "2"
         },
         {
-          "price": 2222,
-          "quantity": 10,
-          "orderId": "e91yq8yy7kgstte92a4ldh",
+          "price": 2000,
+          "quantity": 1,
+          "orderId": "bvdqiuniqx99hu2arz1hkd",
           "filled": 0,
           "side": "buy",
           "userId": "1"
         },
         {
-          "price": 2000,
-          "quantity": 10,
-          "orderId": "fq4tedre7li4ecnxumhv2h",
-          "filled": 2,
+          "price": 1999,
+          "quantity": 100,
+          "orderId": "fbgx98db6cd74205ibco05",
+          "filled": 0,
           "side": "buy",
-          "userId": "2"
+          "userId": "4"
         }
       ],
       "asks": [
         {
-          "price": 3001,
+          "price": 2220,
+          "quantity": 100,
+          "orderId": "vqrur8ndb5mtjgbmh23s6",
+          "filled": 20,
+          "side": "sell",
+          "userId": "1"
+        },
+        {
+          "price": 2222,
           "quantity": 10,
-          "orderId": "msgnm01tk8839snl4x1l3h",
+          "orderId": "7t0irq1tvhjrozzronxcbd",
           "filled": 0,
           "side": "sell",
-          "userId": "3"
+          "userId": "4"
         }
       ],
-      "lastTradeId": 2,
+      "lastTradeId": 12,
       "currentPrice": 0
     }
   ],
@@ -47,12 +55,12 @@
       "1",
       {
         "INR": {
-          "available": 9981780,
-          "locked": 22220
+          "available": 10013090,
+          "locked": 2000
         },
         "TATA": {
-          "available": 9999998,
-          "locked": 0
+          "available": 9999913,
+          "locked": 80
         }
       }
     ],
@@ -60,11 +68,11 @@
       "2",
       {
         "INR": {
-          "available": 9950000,
-          "locked": 46000
+          "available": 9952001,
+          "locked": 14000
         },
         "TATA": {
-          "available": 10000002,
+          "available": 10000012,
           "locked": 0
         }
       }
@@ -73,12 +81,12 @@
       "3",
       {
         "INR": {
-          "available": 10000000,
+          "available": 10041120,
           "locked": 0
         },
         "TATA": {
-          "available": 9999990,
-          "locked": 10
+          "available": 9999985,
+          "locked": 0
         }
       }
     ],
@@ -86,12 +94,12 @@
       "4",
       {
         "INR": {
-          "available": 10000000,
-          "locked": 0
+          "available": 9762890,
+          "locked": 199900
         },
         "TATA": {
-          "available": 10000000,
-          "locked": 0
+          "available": 10000005,
+          "locked": 10
         }
       }
     ],
@@ -99,11 +107,11 @@
       "5",
       {
         "INR": {
-          "available": 10000000,
+          "available": 10014999,
           "locked": 0
         },
         "TATA": {
-          "available": 10000000,
+          "available": 9999995,
           "locked": 0
         }
       }

@@ -24,15 +24,16 @@ export const AskTable = ({ asks }: { asks: [string, string][] }) => {
     const filteredAsks = displayAsks.filter(
       ([_, quantity]) => Number(quantity) > 0
     );
+    // Keep only top 15 asks (highest prices)
     const relevantAsks = filteredAsks.slice(0, 15);
-    relevantAsks.reverse();
 
     let currentTotal = 0;
     const asksWithTotal: [string, string, number][] = [];
 
-    for (let i = relevantAsks.length - 1; i >= 0; i--) {
-      const [price, quantity] = relevantAsks[i];
-      asksWithTotal.push([price, quantity, (currentTotal += Number(quantity))]);
+    // Process asks from highest to lowest price
+    for (const [price, quantity] of relevantAsks) {
+      currentTotal += Number(quantity);
+      asksWithTotal.push([price, quantity, currentTotal]);
     }
 
     const maxTotal = relevantAsks.reduce(

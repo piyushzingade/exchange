@@ -4,8 +4,12 @@ export const BidTable = ({ bids }: { bids: [string, string][] }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Filter out zero quantities
-  const filteredBids = bids.filter(([_, quantity]) => Number(quantity) > 0);
+  // Filter out zero quantities and sort bids high to low
+  const filteredBids = bids
+    .filter(([_, quantity]) => Number(quantity) > 0)
+    .sort(([a], [b]) => Number(b) - Number(a));
+
+  // Keep top 15 highest bids
   const relevantBids = filteredBids.slice(0, 15);
 
   let currentTotal = 0;
