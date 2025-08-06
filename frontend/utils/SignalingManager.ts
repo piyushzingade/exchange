@@ -1,4 +1,4 @@
-import { Ticker } from "./types";
+import { Candle, Ticker } from "./types";
 
 export const BASE_URL = "ws://localhost:3002";
 
@@ -72,8 +72,21 @@ export class SignalingManager {
           if (type === "depth") {
             const updatedBids = message.data.b || [];
             const updatedAsks = message.data.a || [];
-            console.log('Received depth update:', { bids: updatedBids, asks: updatedAsks });
+            // console.log('Received depth update:', { bids: updatedBids, asks: updatedAsks });
             callBack({ bids: updatedBids, asks: updatedAsks });
+          }
+          if (type === "24hrMiniTicker") {
+            const newTicker: Partial<Ticker> = {
+              symbol: message.s,
+              high: message.h,
+              low: message.l,
+              lastPrice: message.c,
+              firstPrice: message.o,
+              quoteVolume: message.q,
+              volume: message.v,
+            };
+
+            callBack(newTicker);
           }
           // if (type === "markPrice") {
           //   // Fixed: Extract correct properties from WebSocket message
@@ -94,6 +107,18 @@ export class SignalingManager {
             };
             console.log("Processed markPrice data:", markPriceData);
             callBack(markPriceData);
+          }
+          if (type === "kline") {
+            const newCandle: Partial<Candle> = {
+              time: message.k.t,
+              open: message.k.o,
+              high: message.k.h,
+              low: message.k.l,
+              close: message.k.c,
+              isClosed: message.k.x,
+            };
+
+            callBack(newCandle);
           }
         });
       } else if (type) {

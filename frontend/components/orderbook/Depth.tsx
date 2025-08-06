@@ -101,25 +101,15 @@ export function Depth({ market }: { market: string }) {
   const handleDepthUpdate = useCallback(
     (data: any) => {
       console.log('Received depth update:', data);
-      // Always update both sides of the order book
+      // Update both sides of the order book while preserving existing orders
       if (data.bids) {
-        // Sort bids high to low
-        const sortedBids = [...data.bids]
-          .sort((a: [string, string], b: [string, string]) => 
-            Number(b[0]) - Number(a[0])
-          ).slice(0, 20);
-        setBids(sortedBids);
+        updateBids(data.bids);
       }
       if (data.asks) {
-        // Sort asks high to low (reversed from before)
-        const sortedAsks = [...data.asks]
-          .sort((a: [string, string], b: [string, string]) => 
-            Number(b[0]) - Number(a[0])
-          ).slice(0, 20);
-        setAsks(sortedAsks);
+        updateAsks(data.asks);
       }
     },
-    []  // No dependencies as we're using setState directly
+    [updateBids, updateAsks]  // Include the update functions in dependencies
   );
 
   useEffect(() => {
@@ -138,8 +128,9 @@ export function Depth({ market }: { market: string }) {
 
         // Handle depth data
         if (depthData.status === "fulfilled") {
-          setBids(depthData.value.bids.reverse().slice(0, 20));
-          setAsks(depthData.value.asks.slice(0, 20));
+          // Use update functions to initialize the order book
+          updateBids(depthData.value.bids);
+          updateAsks(depthData.value.asks);
         }
 
         // Handle price data from ticker
