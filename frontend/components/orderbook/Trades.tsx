@@ -5,6 +5,7 @@ import { getTrade } from "@/utils/httpClient";
 import { SignalingManager } from "@/utils/SignalingManager";
 import { Trade } from "@/utils/types";
 
+
 export default function Trades({ market }: { market: string }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,7 +42,7 @@ export default function Trades({ market }: { market: string }) {
         setLoading(true);
         const tradesData = await getTrade(market);
         console.log("Fetched trades data:", tradesData);
-        // Keep all 100 trades from initial fetch
+        // Keep all trades from initial fetch
         setTrades(tradesData);
       } catch (error) {
         console.error("Error fetching trades:", error);
@@ -63,9 +64,9 @@ export default function Trades({ market }: { market: string }) {
             id: Date.now(),
             isBuyerMaker: false, // markPrice doesn't have buyer/maker info
             price: data?.price || "0",
-            quantity: data?.quantity || "0",
-            quoteQuantity: "0", // markPrice doesn't have quote quantity
-            timestamp: data?.time || Date.now(),
+            qty: data?.quantity || "0", // Use qty instead of quantity
+            quoteQty: "0", // markPrice doesn't have quote quantity
+            time: data?.time || Date.now(), // Use time instead of timestamp
           };
 
           // Keep only the latest 100 trades for performance
@@ -120,21 +121,21 @@ export default function Trades({ market }: { market: string }) {
           trades.map((trade, index) => (
             <div
               key={`${trade.id}-${index}`}
-              className={`grid grid-cols-3  text-sm hover:bg-[#2a2a2e] transition-colors`}
+              className={`grid grid-cols-3 text-sm hover:bg-[#2a2a2e] transition-colors`}
             >
               {/* Price */}
               <div className="text-green-400 font-mono text-center">
                 ${formatPrice(trade.price)}
               </div>
 
-              {/* Quantity */}
+              {/* Quantity - Fixed: use trade.qty instead of trade.quantity */}
               <div className="text-gray-300 font-mono text-center">
-                {formatQuantity(trade.quantity)}
+                {formatQuantity(trade.qty)}
               </div>
 
-              {/* Time */}
+              {/* Time - Fixed: use trade.time instead of trade.timestamp */}
               <div className="text-gray-400 font-mono text-center">
-                {formatTime(trade.timestamp)}
+                {formatTime(trade.time)}
               </div>
             </div>
           ))

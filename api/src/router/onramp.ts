@@ -13,8 +13,6 @@ export const onRampRouter = Router();
 onRampRouter.post("/", async (req, res) => {
   try {
     const { userId, amount } = req.body;
-    console.log("userId:", userId);
-    console.log("amount:", amount);
 
     if (!userId || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -25,43 +23,23 @@ onRampRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "Amount must be positive" });
     }
 
-    // Check if user exists, create if not
-    const checkUserQuery = `
-      INSERT INTO users (user_id, balance, locked, tata_inr_quantity) 
-      VALUES ($1, 0, 0, 0) 
-      ON CONFLICT (user_id) DO NOTHING
+    // Create user if not exists, then add funds
+    const query = `
+      INSERT INTO users (user_id, balance) 
+      VALUES ($1, $2) 
+      ON CONFLICT (user_id) 
+      DO UPDATE SET balance = users.balance + $2
+      RETURNING balance
     `;
-    await client.query(checkUserQuery, [userId]);
 
-    // Update user balance (add USDC/INR)
-    const updateBalanceQuery = `
-      UPDATE users 
-      SET balance = balance + $1 
-      WHERE user_id = $2
-      RETURNING balance, locked, tata_inr_quantity
-    `;
-    const result = await client.query(updateBalanceQuery, [amountNum, userId]);
-
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: "User not found" });
-    }
-
-    const userBalance = result.rows[0];
+    const result = await client.query(query, [userId, amountNum]);
 
     return res.json({
       success: true,
       message: "Funds added successfully",
-      balances: {
-        INR: {
-          available: userBalance.balance,
-          locked: userBalance.locked,
-        },
-        TATA_INR: {
-          quantity: userBalance.tata_inr_quantity,
-        },
-      },
+      balance: parseFloat(result.rows[0].balance),
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("OnRamp error:", error);
     res.status(500).json({ error: "Database error" });
   }

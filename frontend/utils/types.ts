@@ -15,9 +15,10 @@ export interface Trade {
   id: number;
   isBuyerMaker: boolean;
   price: string;
-  quantity: string;
-  quoteQuantity: string;
-  timestamp: number;
+  qty: string; 
+  quoteQty: string; 
+  time: number; // Changed from 'timestamp' to 'time'
+  symbol?: string; // Added optional symbol field
 }
 
 export interface Depth {

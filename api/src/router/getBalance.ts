@@ -4,6 +4,7 @@ import { Client } from "pg";
 const client = new Client({
   connectionString: "postgresql://myuser:mypassword@localhost:5432/mydatabase",
 });
+
 client.connect();
 
 export const balanceRouter = Router();
@@ -17,17 +18,15 @@ balanceRouter.get("/", async (req, res) => {
     }
 
     const result = await client.query(
-      "SELECT balance, locked, tata_inr_quantity FROM users WHERE user_id = $1",
+      "SELECT balance, locked FROM users WHERE user_id = $1",
       [userId]
     );
 
     if (result.rows.length === 0) {
       return res.json({
         success: true,
-        balances: {
-          INR: { available: 0, locked: 0 },
-          TATA_INR: { quantity: 0 },
-        },
+        balance: 0,
+        locked: 0,
       });
     }
 
@@ -35,15 +34,8 @@ balanceRouter.get("/", async (req, res) => {
 
     res.json({
       success: true,
-      balances: {
-        INR: {
-          available: user.balance,
-          locked: user.locked,
-        },
-        TATA_INR: {
-          quantity: user.tata_inr_quantity,
-        },
-      },
+      balance: parseFloat(user.balance),
+      locked: parseFloat(user.locked),
     });
   } catch (error) {
     console.error("Balance error:", error);

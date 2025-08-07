@@ -24,13 +24,17 @@ export const AskTable = ({ asks }: { asks: [string, string][] }) => {
     const filteredAsks = displayAsks.filter(
       ([_, quantity]) => Number(quantity) > 0
     );
+
+    // Sort asks by price in descending order (highest to lowest)
+    const sortedAsks = filteredAsks.sort((a, b) => Number(b[0]) - Number(a[0]));
+
     // Keep only top 15 asks (highest prices)
-    const relevantAsks = filteredAsks.slice(0, 15);
+    const relevantAsks = sortedAsks.slice(0, 15);
 
     let currentTotal = 0;
     const asksWithTotal: [string, string, number][] = [];
 
-    // Process asks from highest to lowest price
+    // Process asks from highest to lowest price (no need to reverse)
     for (const [price, quantity] of relevantAsks) {
       currentTotal += Number(quantity);
       asksWithTotal.push([price, quantity, currentTotal]);
@@ -41,8 +45,7 @@ export const AskTable = ({ asks }: { asks: [string, string][] }) => {
       0
     );
 
-    asksWithTotal.reverse();
-
+    // DON'T reverse here - we want highest to lowest prices
     return { asksWithTotal, maxTotal };
   }, [displayAsks]);
 

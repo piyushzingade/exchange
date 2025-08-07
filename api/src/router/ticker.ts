@@ -61,7 +61,7 @@ tickerRouter.get("/", (req, res) => {
   }
 });
 
-// Get specific ticker
+
 tickerRouter.get("/:symbol", (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
