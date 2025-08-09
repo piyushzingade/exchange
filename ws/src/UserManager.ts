@@ -1,7 +1,7 @@
 import { WebSocket } from "ws";
-import { SubscriptionManager } from "./SubsrciptionManager";
-import { User } from "./User";
 
+import { User } from "./User";
+import { SubscriptionManager } from "./SubsrciptionManager";
 
 export class UserManager {
   private static instance: UserManager;
@@ -21,6 +21,7 @@ export class UserManager {
     const user = new User(id, ws);
     this.users.set(id, user);
     this.registerOnClose(ws, id);
+    console.log(`Added user ${id}. Total users: ${this.users.size}`);
     return user;
   }
 
@@ -28,10 +29,11 @@ export class UserManager {
     ws.on("close", () => {
       this.users.delete(id);
       SubscriptionManager.getInstance().userLeft(id);
+      console.log(`Removed user ${id}. Total users: ${this.users.size}`);
     });
   }
 
-  public getUser(id: string) {
+  public getUser(id: string) {  
     return this.users.get(id);
   }
 

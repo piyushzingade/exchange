@@ -11,80 +11,129 @@ import {
 } from "../types/fromApi";
 import { Fill, Order, Orderbook } from "./Orderbook";
 
-// TODO: Replace floats with decimal library for precision (like PayTM project)
 export const BASE_CURRENCY = "INR";
 
-// User balance structure for each asset
+// User's balance for each cryptocurrency/asset they hold
 interface UserBalance {
   [asset: string]: {
-    available: number; // Available for trading
-    locked: number; // Locked in pending orders
+    available: number; // Money they can spend
+    locked: number; // Money locked in pending orders
   };
 }
 
-// Snapshot structure for persistence
+// What we save to disk to remember state between restarts
 interface EngineSnapshot {
   orderbooks: any[];
   balances: [string, UserBalance][];
 }
 
-// Extended message types for internal error handling
-type InternalMessageType =
-  | "ORDER_PLACED"
-  | "ORDER_CANCELLED"
-  | "OPEN_ORDERS"
-  | "DEPTH";
-
-interface InternalMessage {
-  type: InternalMessageType;
-  payload: any;
+// Complete information about a trade that happened
+interface TradeData {
+  id: string;
+  market: string;
+  price: string;
+  quantity: string;
+  quoteQuantity: string;
+  buyerUserId: string;
+  sellerUserId: string;
+  timestamp: number;
+  isBuyerMaker: boolean;
 }
+
+// WebSocket message types - shared between engine and ws layer
+export type TickerUpdateMessage = {
+  stream: string;
+  data: {
+    c?: string; // close/current price
+    h?: string; // high price
+    l?: string; // low price
+    v?: string; // volume
+    V?: string; // quote volume
+    s?: string; // symbol
+    o?: string; // open price
+    id: number;
+    e: "ticker";
+  };
+};
+
+export type DepthUpdateMessage = {
+  stream: string;
+  data: {
+    b?: [string, string][];
+    a?: [string, string][];
+    e: "depth";
+  };
+};
+
+export type MarkPriceUpdateMessage = {
+  stream: string;
+  data: {
+    e: "markPrice";
+    t: number;
+    m: boolean;
+    p: string;
+    q: string;
+    s: string; // symbol
+  };
+};
+
+export type WsMessage =
+  | TickerUpdateMessage
+  | DepthUpdateMessage
+  | MarkPriceUpdateMessage;
 
 export class Engine {
   private orderbooks: Orderbook[] = [];
   private balances: Map<string, UserBalance> = new Map();
   private snapshotInterval: NodeJS.Timeout | null = null;
 
+  // Track market statistics for ticker updates
+  private marketStats: Map<
+    string,
+    {
+      lastPrice: string;
+      high24h: string;
+      low24h: string;
+      volume24h: string;
+      quoteVolume24h: string;
+      openPrice: string;
+      priceChange24h: string;
+      priceChangePercent24h: string;
+    }
+  > = new Map();
+
   constructor() {
     this.initializeEngine();
-    this.startSnapshotSaving();
+    this.startAutoSave();
   }
 
-  /**
-   * Initialize engine with snapshot data or default values
-   */
-  private initializeEngine(): void {
-    const snapshot = this.loadSnapshot();
+  // ===== INITIALIZATION =====
 
-    if (snapshot) {
-      console.log("Loading from snapshot...");
-      this.restoreFromSnapshot(snapshot);
+  private initializeEngine(): void {
+    const savedData = this.loadSavedData();
+
+    if (savedData) {
+      console.log("🔄 Loading previous data...");
+      this.restoreFromSavedData(savedData);
     } else {
-      console.log("No snapshot found, initializing with defaults...");
-      this.initializeDefaults();
+      console.log("🆕 Starting fresh - no saved data found");
+      this.setupDefaultData();
     }
   }
 
-  /**
-   * Load snapshot from file system
-   */
-  private loadSnapshot(): EngineSnapshot | null {
+  private loadSavedData(): EngineSnapshot | null {
     try {
       if (!process.env.WITH_SNAPSHOT) return null;
 
-      const snapshotData = fs.readFileSync("./snapshot.json", "utf8");
-      return JSON.parse(snapshotData);
+      const data = fs.readFileSync("./snapshot.json", "utf8");
+      return JSON.parse(data);
     } catch (error) {
-      console.log("Failed to load snapshot:", error);
+      console.log("No saved data found, starting fresh");
       return null;
     }
   }
 
-  /**
-   * Restore engine state from snapshot
-   */
-  private restoreFromSnapshot(snapshot: EngineSnapshot): void {
-    // Restore orderbooks with proper instantiation
+  private restoreFromSavedData(snapshot: EngineSnapshot): void {
     this.orderbooks = snapshot.orderbooks.map(
       (data) =>
         new Orderbook(
@@ -96,51 +145,71 @@ export class Engine {
         )
     );
 
-    // Restore user balances
     this.balances = new Map(snapshot.balances);
+
+    // Initialize market stats for each orderbook
+    this.orderbooks.forEach((orderbook) => {
+      const market = orderbook.ticker();
+      this.initializeMarketStats(market);
+    });
   }
 
-  /**
-   * Initialize with default orderbooks and demo balances
-   */
-  private initializeDefaults(): void {
-    // Create default orderbook for TATA_INR market
-    this.orderbooks = [
-      new Orderbook("TATA_INR", [], [], 0, 0)
-    ];
-    this.createDemoUserBalances();
+  private setupDefaultData(): void {
+    this.orderbooks = [new Orderbook("TATA_INR", [], [], 0, 0)];
+    this.createDemoUsers();
+    this.initializeMarketStats("TATA_INR");
   }
 
-  /**
-   * Start automatic snapshot saving
-   */
-  private startSnapshotSaving(): void {
-    // Save snapshot every 3 seconds
+  private initializeMarketStats(market: string): void {
+    if (!this.marketStats.has(market)) {
+      this.marketStats.set(market, {
+        lastPrice: "0",
+        high24h: "0",
+        low24h: "0",
+        volume24h: "0",
+        quoteVolume24h: "0",
+        openPrice: "0",
+        priceChange24h: "0",
+        priceChangePercent24h: "0",
+      });
+    }
+  }
+
+  private createDemoUsers(): void {
+    const startingMoney = 10_000_000;
+    const startingShares = 10_000_000;
+
+    for (let userId = 1; userId <= 5; userId++) {
+      this.balances.set(userId.toString(), {
+        [BASE_CURRENCY]: { available: startingMoney, locked: 0 },
+        TATA: { available: startingShares, locked: 0 },
+      });
+    }
+  }
+
+  // ===== AUTO-SAVE SYSTEM =====
+
+  private startAutoSave(): void {
     this.snapshotInterval = setInterval(() => {
-      this.saveSnapshot();
+      this.saveDataToDisk();
     }, 3000);
   }
 
-  /**
-   * Save current engine state to snapshot file
-   */
-  private saveSnapshot(): void {
+  private saveDataToDisk(): void {
     try {
-      const snapshot: EngineSnapshot = {
+      const dataToSave: EngineSnapshot = {
         orderbooks: this.orderbooks.map((book) => book.getSnapshot()),
         balances: Array.from(this.balances.entries()),
       };
 
-      fs.writeFileSync("./snapshot.json", JSON.stringify(snapshot, null, 2));
+      fs.writeFileSync("./snapshot.json", JSON.stringify(dataToSave, null, 2));
     } catch (error) {
-      console.error("Failed to save snapshot:", error);
+      console.error("Failed to save data:", error);
     }
   }
 
-  /**
-   * Main message processing entry point
-   * Routes different message types to appropriate handlers
-   */
+  // ===== MESSAGE HANDLING =====
+
   process({
     message,
     clientId,
@@ -151,43 +220,34 @@ export class Engine {
     try {
       switch (message.type) {
         case CREATE_ORDER:
-          this.handleCreateOrder(message, clientId);
+          this.handleNewOrder(message, clientId);
           break;
-
         case CANCEL_ORDER:
           this.handleCancelOrder(message, clientId);
           break;
-
         case GET_OPEN_ORDERS:
           this.handleGetOpenOrders(message, clientId);
           break;
-
         case ON_RAMP:
-          this.handleOnRamp(message, clientId);
+          this.handleAddMoney(message, clientId);
           break;
-
         case GET_DEPTH:
           this.handleGetDepth(message, clientId);
           break;
-
         default:
-          console.warn(`Unknown message type: ${(message as any).type}`);
+          console.warn(` Unknown request type: ${(message as any).type}`);
       }
     } catch (error) {
-      console.error(`Error processing message type ${message.type}:`, error);
+      console.error(` Error processing ${message.type}:`, error);
       this.sendErrorResponse(clientId, `Failed to process ${message.type}`);
     }
   }
 
-  /**
-   * Handle order creation requests
-   */
-  private handleCreateOrder(message: any, clientId: string): void {
+  private handleNewOrder(message: any, clientId: string): void {
     try {
       const { market, price, quantity, side, userId } = message.data;
-      const result = this.createOrder(market, price, quantity, side, userId);
+      const result = this.createNewOrder(market, price, quantity, side, userId);
 
-      // Send success response to API
       RedisManager.getInstance().sendToApi(clientId, {
         type: "ORDER_PLACED",
         payload: {
@@ -197,63 +257,45 @@ export class Engine {
         },
       });
     } catch (error) {
-      console.error("Order creation failed:", error);
-      // Send failure response to API
+      console.error(" Order failed:", error);
+
       RedisManager.getInstance().sendToApi(clientId, {
         type: "ORDER_CANCELLED",
-        payload: {
-          orderId: "",
-          executedQty: 0,
-          remainingQty: 0,
-        },
+        payload: { orderId: "", executedQty: 0, remainingQty: 0 },
       });
     }
   }
 
-  /**
-   * Handle order cancellation requests
-   */
   private handleCancelOrder(message: any, clientId: string): void {
     try {
       const { orderId, market } = message.data;
       const orderbook = this.findOrderbook(market);
       const [baseAsset] = market.split("_");
 
-      // Find the order in either bids or asks
       const order = this.findOrderById(orderbook, orderId);
       if (!order) {
         throw new Error("Order not found");
       }
 
-      // Cancel order and unlock funds
-      const cancelledPrice = this.cancelOrderAndUnlockFunds(
+      const cancelledPrice = this.cancelOrderAndRefundMoney(
         orderbook,
         order,
         baseAsset
       );
 
-      // Notify about depth changes if order was cancelled
       if (cancelledPrice !== undefined) {
-        this.sendDepthUpdate(cancelledPrice.toString(), market);
+        this.updateOrderBookDisplay(cancelledPrice.toString(), market);
       }
 
-      // Send success response
       RedisManager.getInstance().sendToApi(clientId, {
         type: "ORDER_CANCELLED",
-        payload: {
-          orderId,
-          executedQty: 0,
-          remainingQty: 0,
-        },
+        payload: { orderId, executedQty: 0, remainingQty: 0 },
       });
     } catch (error) {
-      console.error("Order cancellation failed:", error);
+      console.error("Cancel failed:", error);
     }
   }
 
-  /**
-   * Handle requests for user's open orders
-   */
   private handleGetOpenOrders(message: any, clientId: string): void {
     try {
       const { market, userId } = message.data;
@@ -265,7 +307,7 @@ export class Engine {
         payload: openOrders,
       });
     } catch (error) {
-      console.error("Failed to get open orders:", error);
+      console.error("Failed to get orders:", error);
       RedisManager.getInstance().sendToApi(clientId, {
         type: "OPEN_ORDERS",
         payload: [],
@@ -273,17 +315,11 @@ export class Engine {
     }
   }
 
-  /**
-   * Handle user fund deposits (on-ramp)
-   */
-  private handleOnRamp(message: any, clientId: string): void {
+  private handleAddMoney(message: any, clientId: string): void {
     const { userId, amount } = message.data;
-    this.addFundsToUser(userId, Number(amount));
+    this.addMoneyToUser(userId, Number(amount));
   }
 
-  /**
-   * Handle market depth requests
-   */
   private handleGetDepth(message: any, clientId: string): void {
     try {
       const { market } = message.data;
@@ -295,7 +331,7 @@ export class Engine {
         payload: depth,
       });
     } catch (error) {
-      console.error("Failed to get depth:", error);
+      console.error("Failed to get prices:", error);
       RedisManager.getInstance().sendToApi(clientId, {
         type: "DEPTH",
         payload: { bids: [], asks: [] },
@@ -303,25 +339,23 @@ export class Engine {
     }
   }
 
-  /**
-   * Core order creation logic
-   * 1. Validates market and funds
-   * 2. Locks required funds
-   * 3. Matches order against existing orders
-   * 4. Updates balances and sends notifications
-   */
-  createOrder(
+  // ===== CORE TRADING LOGIC =====
+
+  createNewOrder(
     market: string,
     price: string,
     quantity: string,
     side: "buy" | "sell",
     userId: string
   ): { executedQty: number; fills: Fill[]; orderId: string } {
+    console.log(
+      `New ${side} order: ${quantity} ${market} at ₹${price} by user ${userId}`
+    );
+
     const orderbook = this.findOrderbook(market);
     const [baseAsset, quoteAsset] = market.split("_");
 
-    // Validate and lock funds before creating order
-    this.validateAndLockFunds(
+    this.checkAndLockUserFunds(
       baseAsset,
       quoteAsset,
       side,
@@ -330,89 +364,28 @@ export class Engine {
       quantity
     );
 
-    // Create order object
     const order: Order = {
       price: Number(price),
       quantity: Number(quantity),
-      orderId: this.generateOrderId(),
+      orderId: this.generateUniqueOrderId(),
       filled: 0,
       side,
       userId,
     };
 
-    // Execute order matching
     const { fills, executedQty } = orderbook.addOrder(order);
 
-    // Update user balances based on fills
-    this.processOrderFills(userId, baseAsset, quoteAsset, side, fills);
+    console.log(
+      `Order processed: ${executedQty} shares executed, ${fills.length} trades made`
+    );
 
-    // Send notifications and updates
-    this.notifyOrderExecution(order, executedQty, fills, market, userId);
+    this.updateBalancesAfterTrades(userId, baseAsset, quoteAsset, side, fills);
+    this.processTradeResults(order, executedQty, fills, market, userId);
 
-    return {
-      executedQty,
-      fills,
-      orderId: order.orderId,
-    };
+    return { executedQty, fills, orderId: order.orderId };
   }
 
-  /**
-   * Process all fills from an order execution
-   * Updates balances for both maker and taker
-   */
-  private processOrderFills(
-    userId: string,
-    baseAsset: string,
-    quoteAsset: string,
-    side: "buy" | "sell",
-    fills: Fill[]
-  ): void {
-    for (const fill of fills) {
-      const fillValue = fill.qty * Number(fill.price);
-
-      if (side === "buy") {
-        // Buyer receives base asset, pays quote asset
-        this.updateUserBalance(userId, baseAsset, fill.qty, 0); // Add base
-        this.updateUserBalance(userId, quoteAsset, 0, -fillValue); // Unlock quote
-
-        // Seller receives quote asset, gives base asset
-        this.updateUserBalance(fill.otherUserId, quoteAsset, fillValue, 0); // Add quote
-        this.updateUserBalance(fill.otherUserId, baseAsset, 0, -fill.qty); // Unlock base
-      } else {
-        // Seller receives quote asset, gives base asset
-        this.updateUserBalance(userId, quoteAsset, fillValue, 0); // Add quote
-        this.updateUserBalance(userId, baseAsset, 0, -fill.qty); // Unlock base
-
-        // Buyer receives base asset, pays quote asset
-        this.updateUserBalance(fill.otherUserId, baseAsset, fill.qty, 0); // Add base
-        this.updateUserBalance(fill.otherUserId, quoteAsset, 0, -fillValue); // Unlock quote
-      }
-    }
-  }
-
-  /**
-   * Send all notifications after order execution
-   */
-  private notifyOrderExecution(
-    order: Order,
-    executedQty: number,
-    fills: Fill[],
-    market: string,
-    userId: string
-  ): void {
-    // Update database with order and fill information
-    this.updateDatabaseOrders(order, executedQty, fills, market);
-    this.createDatabaseTrades(fills, market, userId);
-
-    // Send WebSocket updates
-    this.publishDepthUpdates(fills, order.price.toString(), order.side, market);
-    this.publishTradeUpdates(fills, userId, market);
-  }
-
-  /**
-   * Validate user has sufficient funds and lock them
-   */
-  private validateAndLockFunds(
+  private checkAndLockUserFunds(
     baseAsset: string,
     quoteAsset: string,
     side: "buy" | "sell",
@@ -425,87 +398,253 @@ export class Engine {
     const numQuantity = Number(quantity);
 
     if (side === "buy") {
-      // Buying: need quote asset (e.g., INR to buy TATA)
-      const requiredAmount = numQuantity * numPrice;
-      const available = userBalance[quoteAsset]?.available || 0;
+      const moneyNeeded = numQuantity * numPrice;
+      const moneyAvailable = userBalance[quoteAsset]?.available || 0;
 
-      if (available < requiredAmount) {
+      if (moneyAvailable < moneyNeeded) {
         throw new Error(
-          `Insufficient ${quoteAsset} balance. Required: ${requiredAmount}, Available: ${available}`
+          `Not enough ${quoteAsset}! Need: ₹${moneyNeeded}, Have: ₹${moneyAvailable}`
         );
       }
 
-      // Lock quote asset
-      this.updateUserBalance(
-        userId,
-        quoteAsset,
-        -requiredAmount,
-        requiredAmount
-      );
+      this.updateUserBalance(userId, quoteAsset, -moneyNeeded, moneyNeeded);
     } else {
-      // Selling: need base asset (e.g., TATA to sell for INR)
-      const available = userBalance[baseAsset]?.available || 0;
+      const sharesAvailable = userBalance[baseAsset]?.available || 0;
 
-      if (available < numQuantity) {
+      if (sharesAvailable < numQuantity) {
         throw new Error(
-          `Insufficient ${baseAsset} balance. Required: ${numQuantity}, Available: ${available}`
+          `Not enough ${baseAsset}! Need: ${numQuantity}, Have: ${sharesAvailable}`
         );
       }
 
-      // Lock base asset
       this.updateUserBalance(userId, baseAsset, -numQuantity, numQuantity);
     }
   }
 
-  /**
-   * Cancel order and unlock the appropriate funds
-   */
-  private cancelOrderAndUnlockFunds(
-    orderbook: Orderbook,
-    order: Order,
-    baseAsset: string
-  ): number | undefined {
-    const remainingQuantity = order.quantity - order.filled;
-    let cancelledPrice: number | undefined;
+  private updateBalancesAfterTrades(
+    userId: string,
+    baseAsset: string,
+    quoteAsset: string,
+    side: "buy" | "sell",
+    fills: Fill[]
+  ): void {
+    for (const fill of fills) {
+      const tradeValue = fill.qty * Number(fill.price);
 
-    if (order.side === "buy") {
-      cancelledPrice = orderbook.cancelBid(order);
-      if (cancelledPrice !== undefined) {
-        // Unlock quote asset (INR)
-        const lockedAmount = remainingQuantity * order.price;
-        this.updateUserBalance(
-          order.userId,
-          BASE_CURRENCY,
-          lockedAmount,
-          -lockedAmount
-        );
-      }
-    } else {
-      cancelledPrice = orderbook.cancelAsk(order);
-      if (cancelledPrice !== undefined) {
-        // Unlock base asset (e.g., TATA)
-        this.updateUserBalance(
-          order.userId,
-          baseAsset,
-          remainingQuantity,
-          -remainingQuantity
-        );
+      if (side === "buy") {
+        this.updateUserBalance(userId, baseAsset, fill.qty, 0);
+        this.updateUserBalance(userId, quoteAsset, 0, -tradeValue);
+
+        this.updateUserBalance(fill.otherUserId, quoteAsset, tradeValue, 0);
+        this.updateUserBalance(fill.otherUserId, baseAsset, 0, -fill.qty);
+      } else {
+        this.updateUserBalance(userId, quoteAsset, tradeValue, 0);
+        this.updateUserBalance(userId, baseAsset, 0, -fill.qty);
+
+        this.updateUserBalance(fill.otherUserId, baseAsset, fill.qty, 0);
+        this.updateUserBalance(fill.otherUserId, quoteAsset, 0, -tradeValue);
       }
     }
+  }
 
-    return cancelledPrice;
+  private processTradeResults(
+    order: Order,
+    executedQty: number,
+    fills: Fill[],
+    market: string,
+    userId: string
+  ): void {
+    // Process each individual fill as a separate trade
+    for (const fill of fills) {
+      const tradeData = this.createTradeRecord(fill, order, market, userId);
+      this.saveTradeToDatabase(tradeData);
+
+      // Send individual trade updates for EVERY fill (even 1 qty fills)
+      this.sendMarkPriceUpdate(fill, market, order.side);
+
+      // Update market statistics
+      this.updateMarketStats(market, fill);
+    }
+
+    // Send ticker update if any trades happened
+    if (fills.length > 0) {
+      this.sendTickerUpdate(market);
+    }
+
+    this.updateOrderInDatabase(order, executedQty, fills, market);
+    this.updateOrderBookDisplay(order.price.toString(), market);
+  }
+
+  private updateMarketStats(market: string, fill: Fill): void {
+    const stats = this.marketStats.get(market);
+    if (!stats) return;
+
+    const price = Number(fill.price);
+    const quantity = fill.qty;
+    const quoteVolume = price * quantity;
+
+    // Update last price
+    stats.lastPrice = fill.price;
+
+    // Update 24h high/low (simplified - in production you'd track time)
+    if (stats.high24h === "0" || price > Number(stats.high24h)) {
+      stats.high24h = fill.price;
+    }
+    if (stats.low24h === "0" || price < Number(stats.low24h)) {
+      stats.low24h = fill.price;
+    }
+
+    // Update volumes
+    stats.volume24h = (Number(stats.volume24h) + quantity).toString();
+    stats.quoteVolume24h = (
+      Number(stats.quoteVolume24h) + quoteVolume
+    ).toString();
+
+    // Calculate price change (simplified)
+    if (stats.openPrice !== "0") {
+      const priceChange = price - Number(stats.openPrice);
+      const priceChangePercent = (priceChange / Number(stats.openPrice)) * 100;
+      stats.priceChange24h = priceChange.toString();
+      stats.priceChangePercent24h = priceChangePercent.toFixed(2);
+    } else {
+      stats.openPrice = fill.price;
+    }
+  }
+
+  private createTradeRecord(
+    fill: Fill,
+    order: Order,
+    market: string,
+    userId: string
+  ): TradeData {
+    const isBuyerMaker = order.side === "sell";
+    const tradeValue = fill.qty * Number(fill.price);
+
+    return {
+      id: fill.tradeId.toString(),
+      market,
+      price: fill.price,
+      quantity: fill.qty.toString(),
+      quoteQuantity: tradeValue.toString(),
+      buyerUserId: isBuyerMaker ? fill.otherUserId : userId,
+      sellerUserId: isBuyerMaker ? userId : fill.otherUserId,
+      timestamp: Date.now(),
+      isBuyerMaker,
+    };
+  }
+
+  private saveTradeToDatabase(trade: TradeData): void {
+    console.log(
+      ` Saving trade ${trade.id}: ${trade.quantity} ${trade.market} at ₹${trade.price}`
+    );
+
+    RedisManager.getInstance().pushMessage({
+      type: TRADE_ADDED,
+      data: {
+        id: trade.id,
+        market: trade.market,
+        price: trade.price,
+        quantity: trade.quantity,
+        quoteQuantity: trade.quoteQuantity,
+        isBuyerMaker: trade.isBuyerMaker,
+        timestamp: trade.timestamp,
+      },
+    });
   }
 
   /**
-   * Update database with order information
+   * Send real-time mark price update to WebSocket clients
+   * This sends EVERY fill, including 1 qty fills as per Backpack.exchange docs
    */
-  private updateDatabaseOrders(
+  private sendMarkPriceUpdate(
+    fill: Fill,
+    market: string,
+    orderSide: "buy" | "sell"
+  ): void {
+    const orderbook = this.findOrderbook(market);
+    const currentPrice = Number(fill.price);
+
+    // Update the orderbook's current price
+    (orderbook as any).currentPrice = currentPrice;
+
+    console.log(
+      `Broadcasting markPrice: ${market} = ₹${currentPrice} (qty: ${fill.qty})`
+    );
+
+    // Create mark price update message
+    const markPriceMessage: MarkPriceUpdateMessage = {
+      stream: `markPrice@${market}`,
+      data: {
+        e: "markPrice",
+        s: market, // symbol
+        p: fill.price, // price
+        q: fill.qty.toString(), // quantity of THIS fill
+        t: Date.now(), // timestamp
+        m: orderSide === "sell", // is maker (seller is maker when buy order hits sell order)
+      },
+    };
+
+    // Send to markPrice channel for real-time trade updates
+    RedisManager.getInstance().publishMessage(
+      `markPrice@${market}`,
+      markPriceMessage
+    );
+
+    // Also publish to a more generic stream name for compatibility
+    RedisManager.getInstance().publishMessage(
+      `markPrice.${market}`,
+      markPriceMessage
+    );
+
+    console.log(
+      `MarkPrice sent: ${market} @ ₹${fill.price} (qty: ${fill.qty})`
+    );
+  }
+
+  /**
+   * Send ticker update with 24hr statistics
+   */
+  private sendTickerUpdate(market: string): void {
+    const stats = this.marketStats.get(market);
+    if (!stats) return;
+
+    console.log(`Broadcasting ticker update: ${market}`);
+
+    const tickerMessage: TickerUpdateMessage = {
+      stream: `ticker@${market}`,
+      data: {
+        e: "ticker",
+        s: market, // symbol
+        c: stats.lastPrice, // current/close price
+        h: stats.high24h, // high price
+        l: stats.low24h, // low price
+        v: stats.volume24h, // volume
+        V: stats.quoteVolume24h, // quote volume
+        o: stats.openPrice, // open price
+        id: Date.now(),
+      },
+    };
+
+    RedisManager.getInstance().publishMessage(
+      `ticker@${market}`,
+      tickerMessage
+    );
+
+    // Also publish to ticker.MARKET format for compatibility
+    RedisManager.getInstance().publishMessage(
+      `ticker.${market}`,
+      tickerMessage
+    );
+
+    console.log(` Ticker sent: ${market} @ ₹${stats.lastPrice}`);
+  }
+
+  private updateOrderInDatabase(
     order: Order,
     executedQty: number,
     fills: Fill[],
     market: string
   ): void {
-    // Update taker order
     RedisManager.getInstance().pushMessage({
       type: ORDER_UPDATE,
       data: {
@@ -518,7 +657,6 @@ export class Engine {
       },
     });
 
-    // Update maker orders
     fills.forEach((fill) => {
       RedisManager.getInstance().pushMessage({
         type: ORDER_UPDATE,
@@ -530,174 +668,67 @@ export class Engine {
     });
   }
 
-  /**
-   * Create trade records in database
-   */
-  private createDatabaseTrades(
-    fills: Fill[],
-    market: string,
-    userId: string
-  ): void {
-    fills.forEach((fill) => {
-      RedisManager.getInstance().pushMessage({
-        type: TRADE_ADDED,
-        data: {
-          market,
-          id: fill.tradeId.toString(),
-          isBuyerMaker: fill.otherUserId === userId,
-          price: fill.price,
-          quantity: fill.qty.toString(),
-          quoteQuantity: (fill.qty * Number(fill.price)).toString(),
-          timestamp: Date.now(),
-        },
-      });
-    });
-  }
-
-  /**
-   * Publish trade updates to WebSocket subscribers
-   */
-  private publishTradeUpdates(
-    fills: Fill[],
-    userId: string,
-    market: string
-  ): void {
-    fills.forEach((fill) => {
-      RedisManager.getInstance().publishMessage(`trade@${market}`, {
-        stream: `trade@${market}`,
-        data: {
-          e: "trade",
-          t: fill.tradeId,
-          m: fill.otherUserId === userId, // Is maker
-          p: fill.price,
-          q: fill.qty.toString(),
-          s: market,
-        },
-      });
-    });
-  }
-
-  /**
-   * Publish market depth updates to WebSocket subscribers
-   */
-  private publishDepthUpdates(
-    fills: Fill[],
-    orderPrice: string,
-    side: "buy" | "sell",
-    market: string
-  ): void {
-    const orderbook = this.findOrderbook(market);
-    const depth = orderbook.getDepth();
-    
-    // Send current state immediately
-    this.publishDepthMessage(market, depth.asks, depth.bids);
-    
-    // Schedule another update to ensure state is consistent
-    setTimeout(() => {
-      const updatedDepth = orderbook.getDepth();
-      this.publishDepthMessage(market, updatedDepth.asks, updatedDepth.bids);
-    }, 100);
-  }
-
-  /**
-   * Send depth update for a specific price level
-   */
-  private sendDepthUpdate(price: string, market: string): void {
+  private updateOrderBookDisplay(price: string, market: string): void {
     const orderbook = this.findOrderbook(market);
     const depth = orderbook.getDepth();
 
-    const updatedBids = depth.bids.filter((bid) => bid[0] === price);
-    const updatedAsks = depth.asks.filter((ask) => ask[0] === price);
-
-    // If no quantity at this price, send zero quantity update
-    const bidsUpdate: [string, string][] = updatedBids.length
-      ? updatedBids
-      : [[price, "0"]];
-    const asksUpdate: [string, string][] = updatedAsks.length
-      ? updatedAsks
-      : [[price, "0"]];
-
-    this.publishDepthMessage(market, asksUpdate, bidsUpdate);
-  }
-
-  /**
-   * Helper to publish depth message to WebSocket
-   */
-  private publishDepthMessage(
-    market: string,
-    asks: [string, string][],
-    bids: [string, string][]
-  ): void {
-    RedisManager.getInstance().publishMessage(`depth@${market}`, {
+    // Create depth update message
+    const depthMessage: DepthUpdateMessage = {
       stream: `depth@${market}`,
       data: {
-        a: asks,
-        b: bids,
+        a: depth.asks,
+        b: depth.bids,
         e: "depth",
       },
-    });
+    };
+
+    RedisManager.getInstance().publishMessage(`depth@${market}`, depthMessage);
   }
 
-  /**
-   * Add funds to user account (on-ramp functionality)
-   */
-  private addFundsToUser(userId: string, amount: number): void {
-    const userBalance = this.balances.get(userId);
+  private cancelOrderAndRefundMoney(
+    orderbook: Orderbook,
+    order: Order,
+    baseAsset: string
+  ): number | undefined {
+    const unfilledQuantity = order.quantity - order.filled;
+    let cancelledPrice: number | undefined;
 
-    if (!userBalance) {
-      // Create new user with initial balance
-      this.balances.set(userId, {
-        [BASE_CURRENCY]: {
-          available: amount,
-          locked: 0,
-        },
-      });
-    } else {
-      // Add to existing balance
-      if (!userBalance[BASE_CURRENCY]) {
-        userBalance[BASE_CURRENCY] = { available: 0, locked: 0 };
+    if (order.side === "buy") {
+      cancelledPrice = orderbook.cancelBid(order);
+      if (cancelledPrice !== undefined) {
+        const lockedMoney = unfilledQuantity * order.price;
+        this.updateUserBalance(
+          order.userId,
+          BASE_CURRENCY,
+          lockedMoney,
+          -lockedMoney
+        );
       }
-      userBalance[BASE_CURRENCY].available += amount;
+    } else {
+      cancelledPrice = orderbook.cancelAsk(order);
+      if (cancelledPrice !== undefined) {
+        this.updateUserBalance(
+          order.userId,
+          baseAsset,
+          unfilledQuantity,
+          -unfilledQuantity
+        );
+      }
     }
+
+    return cancelledPrice;
   }
 
-  /**
-   * Create demo user balances for testing
-   */
-  private createDemoUserBalances(): void {
-    const demoUsers = ["1", "2", "3", "4", "5"];
-    const initialBalance = 10_000_000; 
+  // ===== UTILITY FUNCTIONS =====
 
-    demoUsers.forEach((userId) => {
-      this.balances.set(userId, {
-        [BASE_CURRENCY]: {
-          available: initialBalance,
-          locked: 0,
-        },
-        TATA: {
-          available: initialBalance,
-          locked: 0,
-        },
-      });
-    });
-  }
-
-  // ===== UTILITY METHODS =====
-
-  /**
-   * Find orderbook by market ticker
-   */
   private findOrderbook(market: string): Orderbook {
     const orderbook = this.orderbooks.find((book) => book.ticker() === market);
     if (!orderbook) {
-      throw new Error(`Orderbook not found for market: ${market}`);
+      throw new Error(`Market ${market} not found`);
     }
     return orderbook;
   }
 
-  /**
-   * Find order by ID in orderbook
-   */
   private findOrderById(
     orderbook: Orderbook,
     orderId: string
@@ -707,9 +738,6 @@ export class Engine {
     );
   }
 
-  /**
-   * Get user balance, creating default if doesn't exist
-   */
   private getUserBalance(userId: string): UserBalance {
     let balance = this.balances.get(userId);
     if (!balance) {
@@ -719,14 +747,11 @@ export class Engine {
     return balance;
   }
 
-  /**
-   * Update user balance for a specific asset
-   */
   private updateUserBalance(
     userId: string,
     asset: string,
-    availableDelta: number,
-    lockedDelta: number
+    availableChange: number,
+    lockedChange: number
   ): void {
     const userBalance = this.getUserBalance(userId);
 
@@ -734,66 +759,56 @@ export class Engine {
       userBalance[asset] = { available: 0, locked: 0 };
     }
 
-    userBalance[asset].available += availableDelta;
-    userBalance[asset].locked += lockedDelta;
+    userBalance[asset].available += availableChange;
+    userBalance[asset].locked += lockedChange;
 
-    // Ensure balances don't go negative
-    if (userBalance[asset].available < 0) {
-      console.warn(
-        `Negative available balance for user ${userId}, asset ${asset}`
-      );
-      userBalance[asset].available = 0;
-    }
-    if (userBalance[asset].locked < 0) {
-      console.warn(
-        `Negative locked balance for user ${userId}, asset ${asset}`
-      );
-      userBalance[asset].locked = 0;
-    }
+    userBalance[asset].available = Math.max(0, userBalance[asset].available);
+    userBalance[asset].locked = Math.max(0, userBalance[asset].locked);
   }
 
-  /**
-   * Generate unique order ID
-   */
-  private generateOrderId(): string {
+  private addMoneyToUser(userId: string, amount: number): void {
+    const userBalance = this.balances.get(userId);
+
+    if (!userBalance) {
+      this.balances.set(userId, {
+        [BASE_CURRENCY]: { available: amount, locked: 0 },
+      });
+    } else {
+      if (!userBalance[BASE_CURRENCY]) {
+        userBalance[BASE_CURRENCY] = { available: 0, locked: 0 };
+      }
+      userBalance[BASE_CURRENCY].available += amount;
+    }
+
+    console.log(`Added ₹${amount} to user ${userId}`);
+  }
+
+  private generateUniqueOrderId(): string {
     return (
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15)
     );
   }
 
-  /**
-   * Send error response to API
-   * Note: This might need to be adjusted based on your MessageToApi type definitions
-   */
   private sendErrorResponse(clientId: string, error: string): void {
-    // Since ERROR type might not be defined in MessageToApi,
-    // we'll send an ORDER_CANCELLED response instead
     RedisManager.getInstance().sendToApi(clientId, {
       type: "ORDER_CANCELLED",
-      payload: {
-        orderId: "",
-        executedQty: 0,
-        remainingQty: 0,
-      },
+      payload: { orderId: "", executedQty: 0, remainingQty: 0 },
     });
     console.error(`Error for client ${clientId}: ${error}`);
   }
 
-  /**
-   * Add new orderbook to engine
-   */
   addOrderbook(orderbook: Orderbook): void {
     this.orderbooks.push(orderbook);
+    const market = orderbook.ticker();
+    this.initializeMarketStats(market);
   }
 
-  /**
-   * Cleanup resources
-   */
   destroy(): void {
     if (this.snapshotInterval) {
       clearInterval(this.snapshotInterval);
     }
-    this.saveSnapshot(); // Final snapshot save
+    this.saveDataToDisk();
+    console.log(" Engine shutdown complete");
   }
 }

@@ -109,7 +109,7 @@ async function initializeDB() {
       ('2', 'TATA_INR', 50, 3450.00),
       ('3', 'TATA_INR', 25, 3500.00),
       ('4', 'TATA_INR', 10, 3480.00),
-      ('5', 'TATA_INR', 75, 3420.00)a
+      ('5', 'TATA_INR', 75, 3420.00)
       ON CONFLICT (user_id, symbol) DO NOTHING;
     `);
     console.log("Sample user holdings inserted");
@@ -175,3 +175,4 @@ async function initializeDB() {
 }
 
 initializeDB();
+ 

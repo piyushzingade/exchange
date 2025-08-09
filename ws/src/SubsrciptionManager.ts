@@ -10,6 +10,7 @@ export class SubscriptionManager {
   private constructor() {
     this.redisClient = createClient();
     this.redisClient.connect();
+    console.log("Connected to Redis for WebSocket subscriptions");
   }
 
   public static getInstance() {
@@ -32,18 +33,28 @@ export class SubscriptionManager {
       subscription,
       (this.reverseSubscriptions.get(subscription) || []).concat(userId)
     );
+
+    // Only subscribe to Redis channel if this is the first subscriber
     if (this.reverseSubscriptions.get(subscription)?.length === 1) {
+      console.log(`Subscribing to Redis channel: ${subscription}`);
       this.redisClient.subscribe(subscription, this.redisCallbackHandler);
     }
   }
 
   private redisCallbackHandler = (message: string, channel: string) => {
-    const parsedMessage = JSON.parse(message);
-    this.reverseSubscriptions
-      .get(channel)
-      ?.forEach((s) =>
-        UserManager.getInstance().getUser(s)?.emit(parsedMessage)
-      );
+    try {
+      const parsedMessage = JSON.parse(message);
+      console.log(`Broadcasting message to ${channel}:`, parsedMessage);
+
+      this.reverseSubscriptions.get(channel)?.forEach((userId) => {
+        const user = UserManager.getInstance().getUser(userId);
+        if (user) {
+          user.emit(parsedMessage);
+        }
+      });
+    } catch (error) {
+      console.error("Error parsing Redis message:", error);
+    }
   };
 
   public unsubscribe(userId: string, subscription: string) {
@@ -54,22 +65,27 @@ export class SubscriptionManager {
         subscriptions.filter((s) => s !== subscription)
       );
     }
+
     const reverseSubscriptions = this.reverseSubscriptions.get(subscription);
     if (reverseSubscriptions) {
       this.reverseSubscriptions.set(
         subscription,
         reverseSubscriptions.filter((s) => s !== userId)
       );
+
+      // Unsubscribe from Redis channel if no more subscribers
       if (this.reverseSubscriptions.get(subscription)?.length === 0) {
         this.reverseSubscriptions.delete(subscription);
+        console.log(`Unsubscribing from Redis channel: ${subscription}`);
         this.redisClient.unsubscribe(subscription);
       }
     }
   }
 
   public userLeft(userId: string) {
-    console.log("user left " + userId);
+    console.log(`User ${userId} left`);
     this.subscriptions.get(userId)?.forEach((s) => this.unsubscribe(userId, s));
+    this.subscriptions.delete(userId);
   }
 
   getSubscriptions(userId: string) {
