@@ -31,12 +31,12 @@ export class SignalingManager {
     this.ws = new WebSocket(BASE_URL);
 
     this.ws.onopen = () => {
-      console.log("✅ WebSocket connected to", BASE_URL);
+      console.log("WebSocket connected to", BASE_URL);
       this.initialized = true;
 
       // Send all buffered messages
       this.bufferedMessage.forEach((message) => {
-        console.log("📤 Sending buffered message:", message);
+        console.log("Sending buffered message:", message);
         this.ws.send(JSON.stringify(message));
 
         // Track subscription
@@ -55,24 +55,24 @@ export class SignalingManager {
 
       // Handle subscription confirmation responses
       if (message.result !== undefined) {
-        console.log("✅ Subscription confirmed:", message);
+        console.log("Subscription confirmed:", message);
         return;
       }
 
       // Handle error responses
       if (message.error) {
-        console.error("❌ WebSocket error:", message.error);
+        console.error("WebSocket error:", message.error);
         return;
       }
 
       // Handle data messages
       const type = message.data?.e;
       if (!type) {
-        console.log("⚠️ Message without type:", message);
+        console.log("Message without type:", message);
         return;
       }
 
-      console.log(`📥 Received ${type} update:`, message.data);
+      console.log(`Received ${type} update:`, message.data);
 
       if (this.callbacks.has(type)) {
         const callbacks = this.callbacks.get(type)!;
@@ -88,7 +88,6 @@ export class SignalingManager {
                 volume: message.data.v,
                 quoteVolume: message.data.V,
                 symbol: message.data.s,
-                // openPrice: message.data.o,
                 priceChange: message.data.priceChange,
                 priceChangePercent: message.data.priceChangePercent,
               };
@@ -130,7 +129,7 @@ export class SignalingManager {
                 t: message.data.t,
                 m: message.data.m,
               };
-              console.log("📊 Processed markPrice data:", markPriceData);
+              console.log("Processed markPrice data:", markPriceData);
               callBack(markPriceData);
             }
 
@@ -146,34 +145,31 @@ export class SignalingManager {
               };
               callBack(newCandle);
             } else {
-              console.log(
-                `🔄 Passing raw data for type ${type}:`,
-                message.data
-              );
+              console.log(`Passing raw data for type ${type}:`, message.data);
               callBack(message.data);
             }
           } catch (error) {
-            console.error(`❌ Error in callback for ${type}:`, error);
+            console.error(`Error in callback for ${type}:`, error);
           }
         });
       } else {
-        console.log(`⚠️ No callbacks registered for type: ${type}`);
+        console.log(`No callbacks registered for type: ${type}`);
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
+      console.error("WebSocket error:", error);
     };
 
     this.ws.onclose = (event) => {
-      console.log("🔌 WebSocket closed:", event.code, event.reason);
+      console.log("WebSocket closed:", event.code, event.reason);
       this.initialized = false;
       this.activeSubscriptions.clear();
       this.pendingSubscriptions.clear();
 
       // Attempt to reconnect after 3 seconds
       setTimeout(() => {
-        console.log("🔄 Attempting to reconnect...");
+        console.log("Attempting to reconnect...");
         this.init();
       }, 3000);
     };
@@ -185,10 +181,10 @@ export class SignalingManager {
       id: this.id++,
     };
 
-    console.log("📤 Sending WebSocket message:", messageToSend);
+    console.log("Sending WebSocket message:", messageToSend);
 
     if (!this.initialized) {
-      console.log("⏳ WebSocket not ready, buffering message");
+      console.log("WebSocket not ready, buffering message");
       this.bufferedMessage.push(messageToSend);
       return;
     }
@@ -201,17 +197,17 @@ export class SignalingManager {
         messageToSend.params?.forEach((param: string) => {
           this.activeSubscriptions.add(param);
           this.pendingSubscriptions.delete(param);
-          console.log(`✅ Subscribed to: ${param}`);
+          console.log(`Subscribed to: ${param}`);
         });
       } else if (messageToSend.method === "UNSUBSCRIBE") {
         messageToSend.params?.forEach((param: string) => {
           this.activeSubscriptions.delete(param);
           this.pendingSubscriptions.delete(param);
-          console.log(`❌ Unsubscribed from: ${param}`);
+          console.log(`Unsubscribed from: ${param}`);
         });
       }
     } catch (error) {
-      console.error("❌ Error sending message:", error);
+      console.error("Error sending message:", error);
       this.bufferedMessage.push(messageToSend);
     }
   }
@@ -222,14 +218,14 @@ export class SignalingManager {
         this.activeSubscriptions.has(stream) ||
         this.pendingSubscriptions.has(stream)
       ) {
-        console.log(`⚠️ Already subscribed/pending to: ${stream}`);
+        console.log(`Already subscribed/pending to: ${stream}`);
         return false;
       }
       return true;
     });
 
     if (streamsToSubscribe.length === 0) {
-      console.log("ℹ️ No new streams to subscribe to");
+      console.log("No new streams to subscribe to");
       return;
     }
 
@@ -250,7 +246,7 @@ export class SignalingManager {
     });
 
     if (streamsToUnsubscribe.length === 0) {
-      console.log("ℹ️ No active streams to unsubscribe from");
+      console.log("No active streams to unsubscribe from");
       return;
     }
 
@@ -275,11 +271,11 @@ export class SignalingManager {
     const existingIndex = callbacks.findIndex((cb) => cb.id === id);
     if (existingIndex !== -1) {
       callbacks.splice(existingIndex, 1);
-      console.log(`🔄 Replaced existing callback for type: ${type}, id: ${id}`);
+      console.log(`Replaced existing callback for type: ${type}, id: ${id}`);
     }
 
     callbacks.push({ callBack, id });
-    console.log(`✅ Registered callback for type: ${type}, id: ${id}`);
+    console.log(`Registered callback for type: ${type}, id: ${id}`);
   }
 
   async deRegisterCallback(type: string, id: string): Promise<void> {
@@ -289,12 +285,12 @@ export class SignalingManager {
     const index = callbacks.findIndex((callback) => callback.id === id);
     if (index !== -1) {
       callbacks.splice(index, 1);
-      console.log(`❌ Deregistered callback for type: ${type}, id: ${id}`);
+      console.log(`Deregistered callback for type: ${type}, id: ${id}`);
 
       // Clean up empty callback arrays
       if (callbacks.length === 0) {
         this.callbacks.delete(type);
-        console.log(`🧹 Cleaned up empty callbacks for type: ${type}`);
+        console.log(`Cleaned up empty callbacks for type: ${type}`);
       }
     }
   }

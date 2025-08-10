@@ -1,6 +1,6 @@
 import fs from "fs";
 import { RedisManager } from "../RedisManager";
-import { ORDER_UPDATE, TRADE_ADDED } from "../types/index";
+import { EngineSnapshot, ORDER_UPDATE, TRADE_ADDED, TradeData, UserBalance } from "../types/index";
 import {
   CANCEL_ORDER,
   CREATE_ORDER,
@@ -10,77 +10,12 @@ import {
   ON_RAMP,
 } from "../types/fromApi";
 import { Fill, Order, Orderbook } from "./Orderbook";
+import { DepthUpdateMessage, MarkPriceUpdateMessage, TickerUpdateMessage } from "../types/toWs";
 
 export const BASE_CURRENCY = "INR";
 
-// User's balance for each cryptocurrency/asset they hold
-interface UserBalance {
-  [asset: string]: {
-    available: number; // Money they can spend
-    locked: number; // Money locked in pending orders
-  };
-}
 
-// What we save to disk to remember state between restarts
-interface EngineSnapshot {
-  orderbooks: any[];
-  balances: [string, UserBalance][];
-}
 
-// Complete information about a trade that happened
-interface TradeData {
-  id: string;
-  market: string;
-  price: string;
-  quantity: string;
-  quoteQuantity: string;
-  buyerUserId: string;
-  sellerUserId: string;
-  timestamp: number;
-  isBuyerMaker: boolean;
-}
-
-// WebSocket message types - shared between engine and ws layer
-export type TickerUpdateMessage = {
-  stream: string;
-  data: {
-    c?: string; // close/current price
-    h?: string; // high price
-    l?: string; // low price
-    v?: string; // volume
-    V?: string; // quote volume
-    s?: string; // symbol
-    o?: string; // open price
-    id: number;
-    e: "ticker";
-  };
-};
-
-export type DepthUpdateMessage = {
-  stream: string;
-  data: {
-    b?: [string, string][];
-    a?: [string, string][];
-    e: "depth";
-  };
-};
-
-export type MarkPriceUpdateMessage = {
-  stream: string;
-  data: {
-    e: "markPrice";
-    t: number;
-    m: boolean;
-    p: string;
-    q: string;
-    s: string; // symbol
-  };
-};
-
-export type WsMessage =
-  | TickerUpdateMessage
-  | DepthUpdateMessage
-  | MarkPriceUpdateMessage;
 
 export class Engine {
   private orderbooks: Orderbook[] = [];
@@ -113,10 +48,10 @@ export class Engine {
     const savedData = this.loadSavedData();
 
     if (savedData) {
-      console.log("🔄 Loading previous data...");
+      console.log(" Loading previous data...");
       this.restoreFromSavedData(savedData);
     } else {
-      console.log("🆕 Starting fresh - no saved data found");
+      console.log(" Starting fresh - no saved data found");
       this.setupDefaultData();
     }
   }
@@ -568,7 +503,7 @@ export class Engine {
     (orderbook as any).currentPrice = currentPrice;
 
     console.log(
-      `Broadcasting markPrice: ${market} = ₹${currentPrice} (qty: ${fill.qty})`
+      `Broadcasting markPrice: ${market} = Rs${currentPrice} (qty: ${fill.qty})`
     );
 
     // Create mark price update message
@@ -584,33 +519,25 @@ export class Engine {
       },
     };
 
-    // Send to markPrice channel for real-time trade updates
+    // Send to ONLY ONE stream to prevent duplicates
     RedisManager.getInstance().publishMessage(
       `markPrice@${market}`,
       markPriceMessage
     );
 
-    // Also publish to a more generic stream name for compatibility
-    RedisManager.getInstance().publishMessage(
-      `markPrice.${market}`,
-      markPriceMessage
-    );
-
     console.log(
-      `MarkPrice sent: ${market} @ ₹${fill.price} (qty: ${fill.qty})`
+      `MarkPrice sent: ${market} @ Rs${fill.price} (qty: ${fill.qty})`
     );
   }
 
-  /**
-   * Send ticker update with 24hr statistics
-   */
+  // Also update the sendTickerUpdate method:
   private sendTickerUpdate(market: string): void {
     const stats = this.marketStats.get(market);
     if (!stats) return;
 
     console.log(`Broadcasting ticker update: ${market}`);
 
-    const tickerMessage: TickerUpdateMessage = {
+    const tickerMessage: TickerUpdateMessage= {
       stream: `ticker@${market}`,
       data: {
         e: "ticker",
@@ -625,18 +552,13 @@ export class Engine {
       },
     };
 
+    // Send to ONLY ONE stream to prevent duplicates
     RedisManager.getInstance().publishMessage(
       `ticker@${market}`,
       tickerMessage
     );
 
-    // Also publish to ticker.MARKET format for compatibility
-    RedisManager.getInstance().publishMessage(
-      `ticker.${market}`,
-      tickerMessage
-    );
-
-    console.log(` Ticker sent: ${market} @ ₹${stats.lastPrice}`);
+    console.log(`Ticker sent: ${market} @ Rs${stats.lastPrice}`);
   }
 
   private updateOrderInDatabase(

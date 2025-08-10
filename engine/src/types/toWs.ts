@@ -1,12 +1,16 @@
+
+
+// WebSocket message types - shared between engine and ws layer
 export type TickerUpdateMessage = {
   stream: string;
   data: {
-    c?: string;
-    h?: string;
-    l?: string;
-    v?: string;
-    V?: string;
-    s?: string;
+    c?: string; // close/current price
+    h?: string; // high price
+    l?: string; // low price
+    v?: string; // volume
+    V?: string; // quote volume
+    s?: string; // symbol
+    o?: string; // open price
     id: number;
     e: "ticker";
   };
@@ -29,7 +33,7 @@ export type MarkPriceUpdateMessage = {
     m: boolean;
     p: string;
     q: string;
-    s: string;
+    s: string; // symbol
   };
 };
 

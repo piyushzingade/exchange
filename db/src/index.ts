@@ -25,7 +25,7 @@ async function main() {
         console.log(data);
 
         const price = parseFloat(data.data.price);
-        const volume = parseFloat(data.data.quantity); // Volume from quantity
+        const volume = parseFloat(data.data.quantity); 
         const timestamp = new Date(data.data.timestamp);
 
         // Insert into tata_prices with volume

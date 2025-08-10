@@ -5,7 +5,7 @@ import AllMarketLists from './AllMarketLists'
 
 export default function Hero() {
   return (
-    <div className='max-w-6xl   mx-auto  space-y-4'>
+    <div className='max-w-7xl px-6  mx-auto  space-y-4'>
        <Slider/>
        <MarketCards/>
        <AllMarketLists/>

@@ -141,7 +141,7 @@ export async function placeOrder(order: {
   }
 }
 
-export async function getUserBalance(userId :string) {
-  const balance = await axios.get(`${BASE_URL}/balance`)
+export async function getUserBalance(userId: string) {
+  const balance = await axios.get(`${BASE_URL}/balance/${userId}`); // Add userId to URL
   return balance.data;
 }

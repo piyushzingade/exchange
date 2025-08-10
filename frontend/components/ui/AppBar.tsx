@@ -91,7 +91,7 @@ export default function AppBar() {
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6] text-md font-semibold`}
-              href={"/trade/SOL_USDC"}
+              href={"/trade/TATA_INR"}
             >
               Spot
             </Link>
@@ -102,7 +102,7 @@ export default function AppBar() {
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6]`}
-              href={"/trade/SOL_USDC"}
+              href={"/trade/TATA_INR"}
             >
               Future
             </Link>
@@ -113,7 +113,7 @@ export default function AppBar() {
               className={`${
                 isSelected ? "text-[#f4f4f6]" : "text-[#969faf]"
               } text-[#969faf] hover:text-[#f4f4f6]`}
-              href={"/trade/SOL_USDC"}
+              href={"/trade/TATA_INR"}
             >
               Lend
             </Link>

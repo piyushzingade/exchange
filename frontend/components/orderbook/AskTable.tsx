@@ -31,21 +31,27 @@ export const AskTable = ({ asks }: { asks: [string, string][] }) => {
     // Keep only top 15 asks (highest prices)
     const relevantAsks = sortedAsks.slice(0, 15);
 
-    let currentTotal = 0;
-    const asksWithTotal: [string, string, number][] = [];
+    // Calculate cumulative totals from bottom to top (lowest to highest price)
+    // First, reverse to calculate from lowest price upward
+    const reversedAsks = [...relevantAsks].reverse();
 
-    // Process asks from highest to lowest price (no need to reverse)
-    for (const [price, quantity] of relevantAsks) {
-      currentTotal += Number(quantity);
-      asksWithTotal.push([price, quantity, currentTotal]);
+    let runningTotal = 0;
+    const asksWithTotalReversed: [string, string, number][] = [];
+
+    // Calculate cumulative from lowest price to highest
+    for (const [price, quantity] of reversedAsks) {
+      runningTotal += Number(quantity);
+      asksWithTotalReversed.push([price, quantity, runningTotal]);
     }
+
+    // Reverse back to display highest to lowest prices
+    const asksWithTotal = asksWithTotalReversed.reverse();
 
     const maxTotal = relevantAsks.reduce(
       (acc, [_, quantity]) => acc + Number(quantity),
       0
     );
 
-    // DON'T reverse here - we want highest to lowest prices
     return { asksWithTotal, maxTotal };
   }, [displayAsks]);
 

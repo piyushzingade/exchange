@@ -25,6 +25,7 @@ export default function LimitSwap({
   market?: string;
   userId?: string;
 }) {
+  const [balance , setBalance] = useState(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   // const balance = getUserBalance(userId);
