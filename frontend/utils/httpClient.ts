@@ -105,19 +105,21 @@ export async function getTrade(market: string): Promise<Trade[]> {
   const response = await axios.get(`${BASE_URL}/trades?symbol=${market}`);
   return response.data;
 }
+
+
 export const getKlines = async (symbol: string): Promise<Candle[]> => {
-  const response = await axios.get<any[]>(
-    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h`
-  );
+  const response = await axios.get(`${BASE_URL}/klines`);
 
   return response.data.map((c: any) => ({
-    time: Math.floor(c[0] / 1000),
-    open: parseFloat(c[1]),
-    high: parseFloat(c[2]),
-    low: parseFloat(c[3]),
-    close: parseFloat(c[4]),
+    time: Number(c.time), // convert string to number
+    open: parseFloat(c.open),
+    high: parseFloat(c.high),
+    low: parseFloat(c.low),
+    close: parseFloat(c.close),
   }));
 };
+
+
 export async function getMarkets(): Promise<string[]> {
   const response = await axios.get(`${BASE_URL}/markets`);
   return response.data;

@@ -97,7 +97,7 @@
           "price": 2220,
           "quantity": 100,
           "orderId": "vqrur8ndb5mtjgbmh23s6",
-          "filled": 5,
+          "filled": 11,
           "side": "sell",
           "userId": "1"
         },
@@ -118,7 +118,7 @@
           "userId": "2"
         }
       ],
-      "lastTradeId": 148,
+      "lastTradeId": 151,
       "currentPrice": 2220
     }
   ],
@@ -127,12 +127,12 @@
       "1",
       {
         "INR": {
-          "available": 10059450,
+          "available": 10083870,
           "locked": 38000
         },
         "TATA": {
           "available": 9999915,
-          "locked": 41
+          "locked": 30
         }
       }
     ],
@@ -140,11 +140,11 @@
       "2",
       {
         "INR": {
-          "available": 9931015.6,
+          "available": 9919915.6,
           "locked": 2
         },
         "TATA": {
-          "available": 10000030,
+          "available": 10000035,
           "locked": 1
         }
       }
@@ -166,11 +166,11 @@
       "4",
       {
         "INR": {
-          "available": 9727368,
+          "available": 9714048,
           "locked": 2
         },
         "TATA": {
-          "available": 10000121,
+          "available": 10000127,
           "locked": 10
         }
       }

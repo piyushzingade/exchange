@@ -128,6 +128,47 @@ async function initializeDB() {
     `);
     console.log("Sample trades inserted");
 
+    //Inset some randon klines data to fetch from the data
+
+    // Create klines table
+    await client.query(`
+    DROP TABLE IF EXISTS "klines" CASCADE;
+    CREATE TABLE "klines"(
+      id SERIAL PRIMARY KEY,
+      open DOUBLE PRECISION NOT NULL,
+      high DOUBLE PRECISION NOT NULL,
+      low DOUBLE PRECISION NOT NULL,
+      close DOUBLE PRECISION NOT NULL,
+      time BIGINT NOT NULL -- storing as UNIX timestamp
+    );
+  `);
+    console.log("Klines table created");
+
+    function generateRandomKlines(count: number) {
+      const klines = [];
+      let basePrice = Math.random() * (3000 - 1000) + 1000;
+
+      for (let i = 0; i < count; i++) {
+        const open = +(basePrice + Math.random() * 20 - 10).toFixed(2);
+        const high = +(open + Math.random() * 15).toFixed(2);
+        const low = +(open - Math.random() * 15).toFixed(2);
+        const close = +(low + Math.random() * (high - low)).toFixed(2);
+        const time = Math.floor(Date.now() / 1000) - (count - i) * 86400;
+        basePrice = close;
+        klines.push({ open, high, low, close, time });
+      }
+      return klines;
+    }
+
+    const data = generateRandomKlines(10);
+
+    await client.query(`
+      INSERT INTO klines (open, high, low, close, time) VALUES
+      ${data
+        .map((k) => `(${k.open}, ${k.high}, ${k.low}, ${k.close}, ${k.time})`)
+        .join(", ")}
+      `);
+
     // Create function to update stock price based on last trade
     await client.query(`
       CREATE OR REPLACE FUNCTION update_stock_price()

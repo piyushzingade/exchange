@@ -46,5 +46,6 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
+  end : number;
   isClosed?: boolean;
 }

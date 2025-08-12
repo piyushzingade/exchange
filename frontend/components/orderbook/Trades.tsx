@@ -8,8 +8,7 @@ import { Trade } from "@/utils/types";
 export default function Trades({ market }: { market: string }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [connectionStatus, setConnectionStatus] =
-    useState<string>("Initializing...");
+  const [connectionStatus, setConnectionStatus] =useState<string>("Initializing...");
 
   // Use refs to prevent multiple subscriptions and track state
   const isInitializedRef = useRef<boolean>(false);
@@ -18,11 +17,11 @@ export default function Trades({ market }: { market: string }) {
   const cleanupExecutedRef = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
   const seenTradeIdsRef = useRef<Set<string>>(new Set());
-  const initialDataFetchedRef = useRef<boolean>(false); // Track if initial data was fetched
-  const realtimeTradesRef = useRef<Trade[]>([]); // Store realtime trades separately
+  const initialDataFetchedRef = useRef<boolean>(false); 
+  const realtimeTradesRef = useRef<Trade[]>([]); 
 
   const formatTime = (timestamp: number) => {
-    // Handle both milliseconds and microseconds timestamps
+
     const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
     return date.toLocaleTimeString("en-US", {
       hour12: false,
@@ -288,13 +287,13 @@ export default function Trades({ market }: { market: string }) {
     };
 
     // Add a small delay to prevent rapid re-renders in development
-    const timeoutId = setTimeout(initializeTrades, 100);
+    // const timeoutId = setTimeout(initializeTrades, 100);
 
     // Cleanup function
     return () => {
       console.log(`useEffect cleanup for ${market}`);
       mountedRef.current = false;
-      clearTimeout(timeoutId);
+      // clearTimeout(timeoutId);
 
       // Only cleanup if this is the final unmount or market is changing
       if (currentMarketRef.current === market) {
@@ -386,7 +385,7 @@ export default function Trades({ market }: { market: string }) {
       </div>
 
       {/* Debug Info */}
-      <div className="text-xs text-gray-500 mt-2 px-2 space-y-1 border-t border-gray-700 pt-2">
+      {/* <div className="text-xs text-gray-500 mt-2 px-2 space-y-1 border-t border-gray-700 pt-2">
         {trades.length > 0 && (
           <div>
             {trades.length} trades • Latest: {formatTime(trades[0]?.time || 0)}
@@ -405,7 +404,7 @@ export default function Trades({ market }: { market: string }) {
         <div>
           Initial fetched: {initialDataFetchedRef.current ? "Yes" : "No"}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

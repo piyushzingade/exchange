@@ -3,8 +3,7 @@
 import { Depth } from "@/components/orderbook/Depth";
 import { MarketBar } from "@/components/MarketBar";
 import { SwapUI } from "@/components/SwapUI";
-import { TradeView } from "@/components/TradingViewWidget";
-// import TradeView from "@/components/TradeView";
+import {TradeView} from "@/components/TradeView";
 
 
 export default async function Page({params} : { params : Promise<{market : string}>}) {

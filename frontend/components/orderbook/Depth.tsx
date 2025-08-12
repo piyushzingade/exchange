@@ -19,7 +19,6 @@ export function Depth({ market }: { market: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Memoized function to update bids
   const updateBids = useCallback((newBids: OrderBookEntry[]) => {
     if (isProcessing) return;
     setIsProcessing(true);
