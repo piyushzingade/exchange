@@ -42,6 +42,7 @@ export class Engine {
     this.startAutoSave();
   }
 
+  // ===== INITIALIZATION =====
 
   private initializeEngine(): void {
     const savedData = this.loadSavedData();
@@ -121,6 +122,7 @@ export class Engine {
     }
   }
 
+  // ===== AUTO-SAVE SYSTEM =====
 
   private startAutoSave(): void {
     this.snapshotInterval = setInterval(() => {
@@ -141,6 +143,7 @@ export class Engine {
     }
   }
 
+  // ===== MESSAGE HANDLING =====
 
   process({
     message,
@@ -167,7 +170,7 @@ export class Engine {
           this.handleGetDepth(message, clientId);
           break;
         default:
-          console.log(` Unknown request type: ${(message as any).type}`);
+          console.warn(` Unknown request type: ${(message as any).type}`);
       }
     } catch (error) {
       console.error(` Error processing ${message.type}:`, error);
@@ -271,6 +274,7 @@ export class Engine {
     }
   }
 
+  // ===== CORE TRADING LOGIC =====
 
   createNewOrder(
     market: string,
@@ -483,8 +487,10 @@ export class Engine {
     });
   }
 
-  // Send real-time mark price update to WebSocket clients
-
+  /**
+   * Send real-time mark price update to WebSocket clients
+   * This sends EVERY fill, including 1 qty fills as per Backpack.exchange docs
+   */
   private sendMarkPriceUpdate(
     fill: Fill,
     market: string,

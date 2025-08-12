@@ -1,14 +1,15 @@
 "use client";
 
 import React from "react";
-import { getDepth, getTicker } from "@/utils/httpClient";
+import { getDepth, getTicker, getTrade } from "@/utils/httpClient";
 import { SignalingManager } from "@/utils/SignalingManager";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { AskTable } from "./AskTable";
 import { BidTable } from "./BidTable";
 import { BookTableHeader } from "./TablesHeaders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import Trades from "./Trades";
+import { Trade } from "@/utils/types";
 
 type OrderBookEntry = [string, string];
 
@@ -18,6 +19,15 @@ export function Depth({ market }: { market: string }) {
   const [price, setPrice] = useState<string>();
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Trade states moved from Trades component
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradesLoading, setTradesLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState("Initializing...");
+
+  const callbackIdRef = useRef("");
+  const currentMarketRef = useRef("");
+  const seenTradeIdsRef = useRef(new Set<string>());
 
   const updateBids = useCallback((newBids: OrderBookEntry[]) => {
     if (isProcessing) return;
@@ -33,12 +43,10 @@ export function Depth({ market }: { market: string }) {
         );
 
         if (Number(newQuantity) === 0) {
-          // Remove the bid if quantity is 0
           if (existingIndex !== -1) {
             bidsAfterUpdate.splice(existingIndex, 1);
           }
         } else {
-          // Update existing or add new bid
           if (existingIndex !== -1) {
             bidsAfterUpdate[existingIndex][1] = newQuantity;
           } else {
@@ -47,7 +55,6 @@ export function Depth({ market }: { market: string }) {
         }
       });
 
-      // Sort bids by price descending and return top 20 for performance
       const sortedBids = bidsAfterUpdate
         .sort((a, b) => Number(b[0]) - Number(a[0]))
         .slice(0, 20);
@@ -57,7 +64,6 @@ export function Depth({ market }: { market: string }) {
     });
   }, []);
 
-  // Memoized function to update asks
   const updateAsks = useCallback((newAsks: OrderBookEntry[]) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -72,12 +78,10 @@ export function Depth({ market }: { market: string }) {
         );
 
         if (Number(newQuantity) === 0) {
-          // Remove the ask if quantity is 0
           if (existingIndex !== -1) {
             asksAfterUpdate.splice(existingIndex, 1);
           }
         } else {
-          // Update existing or add new ask
           if (existingIndex !== -1) {
             asksAfterUpdate[existingIndex][1] = newQuantity;
           } else {
@@ -86,7 +90,6 @@ export function Depth({ market }: { market: string }) {
         }
       });
 
-      // Sort asks by price descending (high to low) and return top 20 for performance
       const sortedAsks = asksAfterUpdate
         .sort((a, b) => Number(b[0]) - Number(a[0]))
         .slice(0, 20);
@@ -96,11 +99,9 @@ export function Depth({ market }: { market: string }) {
     });
   }, []);
 
-  // Memoized depth update handler
   const handleDepthUpdate = useCallback(
     (data: any) => {
-      console.log('Received depth update:', data);
-      // Update both sides of the order book while preserving existing orders
+      console.log("Received depth update:", data);
       if (data.bids) {
         updateBids(data.bids);
       }
@@ -108,26 +109,73 @@ export function Depth({ market }: { market: string }) {
         updateAsks(data.asks);
       }
     },
-    [updateBids, updateAsks]  // Include the update functions in dependencies
+    [updateBids, updateAsks]
   );
+
+  // Trade update handler moved from Trades component
+  const handleTradeUpdate = useCallback((data: any) => {
+    const tradeId = `${data.p || data.price}_${data.q || data.quantity}_${
+      data.t || data.time
+    }`;
+    if (seenTradeIdsRef.current.has(tradeId)) return;
+
+    seenTradeIdsRef.current.add(tradeId);
+
+    const newTrade: Trade = {
+      id: Date.now() + Math.random(),
+      isBuyerMaker: data.m || false,
+      price: data.p || "0",
+      qty: data.q || "0",
+      quoteQty: (Number(data.p || 0) * Number(data.q || 0)).toString(),
+      time: data.t || Date.now(),
+    };
+
+    setTrades((prev) => [newTrade, ...prev].slice(0, 100));
+    setConnectionStatus("Live updates active");
+  }, []);
+
+  // Cleanup function for trades websocket
+  const cleanupTrades = useCallback(async () => {
+    if (callbackIdRef.current) {
+      await SignalingManager.getInstance().deRegisterCallback(
+        "markPrice",
+        callbackIdRef.current
+      );
+      callbackIdRef.current = "";
+    }
+    if (currentMarketRef.current) {
+      await SignalingManager.getInstance().unsubscribe([
+        `markPrice@${currentMarketRef.current}`,
+      ]);
+      currentMarketRef.current = "";
+    }
+  }, []);
 
   useEffect(() => {
     const signalingManager = SignalingManager.getInstance();
+    let mounted = true;
 
-    // Initialize data loading
     const initializeData = async () => {
       try {
         setIsLoading(true);
+        setTradesLoading(true);
+
+        // Cleanup previous trades subscription
+        await cleanupTrades();
+        currentMarketRef.current = market;
+        setConnectionStatus("Loading trades...");
 
         // Fetch initial data in parallel
-        const [depthData, tickerData] = await Promise.allSettled([
+        const [depthData, tickerData, tradesData] = await Promise.allSettled([
           getDepth(market),
           getTicker(market),
+          getTrade(market),
         ]);
+
+        if (!mounted) return;
 
         // Handle depth data
         if (depthData.status === "fulfilled") {
-          // Use update functions to initialize the order book
           updateBids(depthData.value.bids);
           updateAsks(depthData.value.asks);
         }
@@ -136,38 +184,91 @@ export function Depth({ market }: { market: string }) {
         if (tickerData.status === "fulfilled") {
           setPrice(tickerData.value.lastPrice);
         }
+
+        // Handle trades data
+        if (tradesData.status === "fulfilled") {
+          tradesData.value.forEach((t) => {
+            seenTradeIdsRef.current.add(`${t.price}_${t.qty}_${t.time}`);
+          });
+
+          setTrades((prev) => {
+            const merged = [...tradesData.value, ...prev];
+            const unique = merged.filter(
+              (trade, index, arr) =>
+                index ===
+                arr.findIndex(
+                  (t) =>
+                    t.time === trade.time &&
+                    t.price === trade.price &&
+                    t.qty === trade.qty
+                )
+            );
+            return unique.slice(0, 100);
+          });
+
+          setConnectionStatus(`Loaded ${tradesData.value.length} trades`);
+        } else {
+          if (mounted) setConnectionStatus("Failed to load trades");
+        }
       } catch (error) {
-        console.error("Error initializing depth data:", error);
+        console.error("Error initializing data:", error);
+        if (mounted) {
+          setConnectionStatus("Failed to load trades");
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setTradesLoading(false);
+        }
+      }
+
+      // Set up websocket subscriptions
+      if (mounted) {
+        // Register depth callback
+        signalingManager.registerCallback(
+          "depth",
+          handleDepthUpdate,
+          `DEPTH-${market}`
+        );
+
+        // Register trades callback
+        const tradeCallbackId = `MARKPRICE-${market}-${Date.now()}`;
+        callbackIdRef.current = tradeCallbackId;
+        await signalingManager.registerCallback(
+          "markPrice",
+          handleTradeUpdate,
+          tradeCallbackId
+        );
+
+        // Subscribe to both streams
+        signalingManager.sendMessage({
+          method: "SUBSCRIBE",
+          params: [`depth@${market}`, `markPrice@${market}`],
+        });
       }
     };
 
-    // Register depth callback
-    signalingManager.registerCallback(
-      "depth",
-      handleDepthUpdate,
-      `DEPTH-${market}`
-    );
-
-    // Subscribe to depth stream
-    signalingManager.sendMessage({
-      method: "SUBSCRIBE",
-      params: [`depth@${market}`], // Changed to match engine's format
-    });
-
-    // Initialize data
     initializeData();
 
-    // Cleanup function
     return () => {
+      mounted = false;
+      // Cleanup depth subscription
       signalingManager.deRegisterCallback("depth", `DEPTH-${market}`);
       signalingManager.sendMessage({
         method: "UNSUBSCRIBE",
         params: [`depth@${market}`],
       });
+      // Cleanup trades subscription
+      cleanupTrades();
     };
-  }, [market, handleDepthUpdate]);
+  }, [
+    market,
+    handleDepthUpdate,
+    handleTradeUpdate,
+    updateBids,
+    updateAsks,
+    cleanupTrades,
+  ]);
 
   if (isLoading) {
     return (
@@ -201,9 +302,7 @@ export function Depth({ market }: { market: string }) {
           <div className="w-full">
             <BookTableHeader />
 
-            {/* Order Book Content */}
             <div className="w-full space-y-1">
-              {/* Asks Section */}
               <div className="w-full">
                 {asks.length > 0 ? (
                   <AskTable asks={asks} />
@@ -214,7 +313,6 @@ export function Depth({ market }: { market: string }) {
                 )}
               </div>
 
-              {/* Current Price */}
               {price && (
                 <div className="w-full">
                   <div className="text-center text-white font-mono text-lg font-semibold py-2">
@@ -227,7 +325,6 @@ export function Depth({ market }: { market: string }) {
                 </div>
               )}
 
-              {/* Bids Section */}
               <div className="w-full">
                 {bids.length > 0 ? (
                   <BidTable bids={bids} />
@@ -242,7 +339,12 @@ export function Depth({ market }: { market: string }) {
         </TabsContent>
 
         <TabsContent value="Trades" className="w-full">
-          <Trades market={market} />
+          <Trades
+            market={market}
+            trades={trades}
+            loading={tradesLoading}
+            connectionStatus={connectionStatus}
+          />
         </TabsContent>
       </Tabs>
     </div>

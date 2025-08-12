@@ -1,3 +1,5 @@
+"use client"
+import { getUserBalance } from "@/utils/httpClient";
 import React, { useState } from "react";
 
 export default function MarketSwap() {
@@ -5,7 +7,8 @@ export default function MarketSwap() {
   const [sliderValue, setSliderValue] = useState(0);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tpSl, setTpSl] = useState(false);
-
+  const userId = "1";
+  const balance = getUserBalance(userId);
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSliderValue(parseInt(e.target.value));
   };
@@ -15,7 +18,7 @@ export default function MarketSwap() {
       {/* Available Equity */}
       <div className="flex justify-between items-center mb-4">
         <span className="text-gray-400 text-sm">Available Equity</span>
-        <span className="text-white font-medium">$0.00</span>
+        <span className="text-white font-medium">${balance}</span>
       </div>
 
       {/* Quantity Section */}

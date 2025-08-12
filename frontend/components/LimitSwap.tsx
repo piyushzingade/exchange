@@ -1,10 +1,9 @@
-"use client"
+"use client";
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getUserBalance, placeOrder } from "@/utils/httpClient";
-
 
 export default function LimitSwap({
   price,
@@ -13,8 +12,8 @@ export default function LimitSwap({
   setQuantity,
   orderValue,
   side,
-  market = "TATA_INR", // default market for TATA/INR trading
-  userId = "1" // default user ID
+  market = "TATA_INR",
+  userId = "1",
 }: {
   price: string;
   setPrice: (price: string) => void;
@@ -25,43 +24,73 @@ export default function LimitSwap({
   market?: string;
   userId?: string;
 }) {
-  const [balance , setBalance] = useState(null);
+  const [balance, setBalance] = useState<{
+    balance: number;
+    locked: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  // const balance = getUserBalance(userId);
+  const [isBalanceLoading, setIsBalanceLoading] = useState(true);
 
   const randomUserId = () => {
     return (Math.floor(Math.random() * 5) + 1).toString();
-  }
-  
+  };
+
+  // Fetch balance when component mounts or userId changes
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        setIsBalanceLoading(true);
+        const balanceData = await getUserBalance(userId);
+        setBalance(balanceData);
+      } catch (err) {
+        console.error("Failed to fetch balance:", err);
+        setBalance({ balance: 0, locked: 0 });
+      } finally {
+        setIsBalanceLoading(false);
+      }
+    };
+
+    fetchBalance();
+  }, [userId]);
+
   const handleSubmit = async () => {
-    if (!price || !quantity || parseFloat(price) <= 0 || parseFloat(quantity) <= 0) {
-      setError('Please enter valid price and quantity');
+    if (
+      !price ||
+      !quantity ||
+      parseFloat(price) <= 0 ||
+      parseFloat(quantity) <= 0
+    ) {
+      setError("Please enter valid price and quantity");
       return;
     }
 
     try {
       setError(null);
       setIsLoading(true);
-      
+
       const response = await placeOrder({
         price: parseFloat(price),
         quantity: parseFloat(quantity),
         userId: randomUserId(),
         market,
-        side
+        side,
       });
-      
+
       // Reset form after successful order
       setPrice("0");
       setQuantity("0");
+
+      // Refresh balance after successful order
+      const balanceData = await getUserBalance(userId);
+      setBalance(balanceData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to place order');
-      console.error('Order placement failed:', err);
+      setError(err instanceof Error ? err.message : "Failed to place order");
+      console.error("Order placement failed:", err);
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const handleInput = (value: string) => {
     // Remove all non-numeric characters except decimal point
@@ -92,12 +121,20 @@ export default function LimitSwap({
 
     return positiveOnly;
   };
+
   return (
     <div className="w-full">
       <div className="flex justify-between items-center text-xs text-gray-400 mb-2">
         <span className="text-gray-600">Available Equity</span>
-        <span className="text-white"> 0</span>
+        <span className="text-white">
+          {isBalanceLoading
+            ? "Loading..."
+            : balance
+            ? `₹${balance.balance.toLocaleString()}`
+            : "₹0"}
+        </span>
       </div>
+
       <div className="mb-4">
         <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
           <span>Price</span>
@@ -153,7 +190,6 @@ export default function LimitSwap({
         </div>
       </div>
 
-
       {/* Order Value */}
       <div className="mb-4">
         <div className="text-xs text-gray-400 mb-1">Order Value</div>
@@ -175,20 +211,17 @@ export default function LimitSwap({
 
       {/* Order Button and Error Message */}
       <div className="flex flex-col gap-2 mb-4">
-        {error && (
-          <div className="text-red-500 text-sm mb-2">
-            {error}
-          </div>
-        )}
-        <Button 
+        {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+        <Button
           onClick={handleSubmit}
           disabled={isLoading}
           className={`${
-            side === 'buy' 
-              ? 'bg-[#00c278] hover:bg-[#00b36e]' 
-              : 'bg-[#fd4b4e] hover:bg-[#e04447]'
-          } text-white rounded-xl h-12 font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}>
-          {isLoading ? 'Placing Order...' : `Place ${side.toUpperCase()} Order`}
+            side === "buy"
+              ? "bg-[#00c278] hover:bg-[#00b36e]"
+              : "bg-[#fd4b4e] hover:bg-[#e04447]"
+          } text-white rounded-xl h-12 font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {isLoading ? "Placing Order..." : `Place ${side.toUpperCase()} Order`}
         </Button>
       </div>
 

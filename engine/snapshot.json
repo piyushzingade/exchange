@@ -97,9 +97,17 @@
           "price": 2220,
           "quantity": 100,
           "orderId": "vqrur8ndb5mtjgbmh23s6",
-          "filled": 11,
+          "filled": 22,
           "side": "sell",
           "userId": "1"
+        },
+        {
+          "price": 2220,
+          "quantity": 14,
+          "orderId": "5ahpap9a3nwlwrshe4riri",
+          "filled": 0,
+          "side": "sell",
+          "userId": "2"
         },
         {
           "price": 2222,
@@ -118,7 +126,7 @@
           "userId": "2"
         }
       ],
-      "lastTradeId": 151,
+      "lastTradeId": 155,
       "currentPrice": 2220
     }
   ],
@@ -127,12 +135,12 @@
       "1",
       {
         "INR": {
-          "available": 10083870,
+          "available": 10099410,
           "locked": 38000
         },
         "TATA": {
-          "available": 9999915,
-          "locked": 30
+          "available": 9999919,
+          "locked": 19
         }
       }
     ],
@@ -144,8 +152,8 @@
           "locked": 2
         },
         "TATA": {
-          "available": 10000035,
-          "locked": 1
+          "available": 10000021,
+          "locked": 15
         }
       }
     ],
@@ -153,11 +161,11 @@
       "3",
       {
         "INR": {
-          "available": 10027586.8,
+          "available": 10025366.8,
           "locked": 0
         },
         "TATA": {
-          "available": 9999990,
+          "available": 9999991,
           "locked": 0
         }
       }
@@ -166,11 +174,11 @@
       "4",
       {
         "INR": {
-          "available": 9714048,
+          "available": 9709608,
           "locked": 2
         },
         "TATA": {
-          "available": 10000127,
+          "available": 10000129,
           "locked": 10
         }
       }
@@ -179,11 +187,11 @@
       "5",
       {
         "INR": {
-          "available": 10210562.1,
-          "locked": 10013.500000000016
+          "available": 10201682.1,
+          "locked": 10013.500000000015
         },
         "TATA": {
-          "available": 9999892,
+          "available": 9999896,
           "locked": 0
         }
       }
