@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+      - ws
+
+  http-server:
+    build: ./api
+    ports:
+      - "3001:3001"
+    networks:
+      - backend
+
+  ws:
+    build: ./ws
+    ports:
+      - "3002:3002"
+    networks:
+      - backend
+
+  engine:
+    build: ./engine
+    networks:
+      - backend
+
+networks:
+  backend:
